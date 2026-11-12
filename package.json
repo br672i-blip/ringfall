@@ -1,0 +1,13 @@
+{
+  "name": "ringfall",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Top-down battle royale with bots, playable solo in the browser or online with friends.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
