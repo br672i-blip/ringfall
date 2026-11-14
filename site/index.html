@@ -11,16 +11,19 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%2380af49' stroke='%23ff2a2a' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23ffb400'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Black+Ops+One&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Exo+2:wght@500&family=Russo+One&display=swap">
 <style>
-/* Layout and colours follow survev.io's start screen: the map as a backdrop, a dimming overlay,
-   translucent black menu blocks, a green play button, teal secondary buttons and a grey help button. */
+/* Modelled on survev.io's start screen: map backdrop under a light dimming overlay, a boxed logo,
+   translucent black blocks, green/yellow/teal/grey buttons with a darker bottom edge, blue account-style
+   buttons at the top right and square grey option buttons at the bottom right. */
 :root{
   --side-pad:12px;
   --block:rgba(0,0,0,.5);
   --green:#83af50; --green-edge:#5b7a38;
+  --yellow:#a7a32a; --yellow-edge:#6e6b1c;
   --teal:#50afab; --teal-edge:#387c79;
   --grey:#7a7a7a; --grey-edge:#3e3e3e;
+  --blue:#1e90ff; --blue-edge:#1871c8;
   --gold:gold;
   --f:"Roboto Condensed",Arial,sans-serif;
   color-scheme:dark;
@@ -28,122 +31,155 @@
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:#80af49;color:#fff;font-family:var(--f);font-size:16px}
 a{color:inherit}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 #background{position:fixed;inset:0;background:#80af49 url(img/splash.jpg) center/cover no-repeat;z-index:0}
 #start-overlay{position:fixed;inset:0;background:rgba(0,0,0,.2)}
+#start-main{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 16px 120px}
 
-#start-main{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 16px 110px}
-
-/* logo, in place of survev's logo image */
-#start-row-header{margin:75px auto 42px;height:140px;width:min(396px,100%);display:grid;place-items:center;text-align:center}
-.logo{margin:0;font-family:"Black Ops One",Impact,sans-serif;font-weight:400;font-size:66px;line-height:1;letter-spacing:.01em;color:#fff;
-  -webkit-text-stroke:2px #2b2014;paint-order:stroke fill;
-  text-shadow:0 5px 0 #2b2014,0 9px 0 rgba(0,0,0,.25),0 14px 28px rgba(0,0,0,.35)}
-.logo span{color:#ffb400}
-.logo-sub{display:block;margin-top:10px;font:700 15px var(--f);letter-spacing:.22em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+/* logo: a white outlined box with the name, and "BATTLE ROYALE" in green underneath */
+#start-row-header{margin:75px auto 42px;height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.logo{margin:0;display:flex;flex-direction:column;align-items:center;gap:20px}
+.logo-box{display:block;border:5px solid #fff;padding:4px 22px 2px;box-shadow:0 0 0 2px rgba(0,0,0,.55),inset 0 0 0 2px rgba(0,0,0,.55);background:rgba(0,0,0,.08);
+  font:500 64px/1.05 "Exo 2",var(--f);letter-spacing:.04em;color:#fff;text-shadow:0 0 2px #000,0 2px 0 rgba(0,0,0,.6)}
+.logo-box span{color:#f6d12d}
+.logo-sub{font:400 38px/1 "Russo One",var(--f);letter-spacing:.06em;color:#00ff0f;-webkit-text-stroke:2px #1a3d05;paint-order:stroke fill;text-shadow:0 3px 0 rgba(0,0,0,.45)}
 
 #start-row-top{display:flex;justify-content:center;align-items:flex-start}
 .menu-block{background:var(--block);border-radius:5px}
 
-/* left column: featured panel + social buttons (survev keeps an ad slot and share icons here) */
+/* shared button look */
+.menu-option{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:40px;margin-bottom:8px;border:0;border-radius:5px;
+  text-align:center;text-decoration:none;cursor:pointer;font:16px var(--f);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.menu-option:focus-visible{outline:none;box-shadow:0 0 1px 1px var(--green),0 0 0 3px #fff}
+.menu-option svg{width:20px;height:20px;flex:none}
+.btn-darken{transition:filter .25s ease}
+.btn-darken:hover,.btn-darken:active{filter:brightness(80%)}
+.btn-green{background:var(--green);border-bottom:2px solid var(--green-edge);box-shadow:inset 0 -2px var(--green-edge)}
+.btn-yellow{background:var(--yellow);border-bottom:2px solid var(--yellow-edge);box-shadow:inset 0 -2px var(--yellow-edge)}
+.btn-teal{background:var(--teal);border-bottom:2px solid var(--teal-edge);box-shadow:inset 0 -2px var(--teal-edge)}
+.btn-grey{background:var(--grey);border-bottom:2px solid var(--grey-edge);box-shadow:inset 0 -2px var(--grey-edge)}
+.btn-blue{background:var(--blue);border-bottom:2px solid var(--blue-edge);box-shadow:inset 0 -2px var(--blue-edge)}
+.row{display:flex;gap:4px}
+[aria-expanded="true"]{filter:brightness(85%)}
+
+/* left column: featured panel (survev's promo slot) + social row */
 #left-column{width:300px;margin-right:30px}
-#featured{display:block;height:250px;overflow:hidden;position:relative;text-decoration:none}
-#featured img{width:100%;height:100%;object-fit:cover;display:block;opacity:.9;transition:opacity .25s}
+#featured{display:block;height:250px;overflow:hidden;position:relative;text-decoration:none;border:2px solid rgba(0,0,0,.7);border-radius:0;background:#000}
+#featured img{width:100%;height:100%;object-fit:cover;display:block;opacity:.92;transition:opacity .25s}
 #featured:hover img{opacity:1}
-#featured .cap{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+#featured .cap{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center}
 #featured .tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#000;background:var(--gold);border-radius:3px;padding:2px 6px}
-#featured b{display:block;font-size:20px;margin-top:6px}
-#featured small{display:block;font-size:14px;color:rgba(255,255,255,.8);margin-top:2px}
+#featured b{display:block;font-size:24px;margin-top:6px}
+#featured small{display:block;font-size:15px;color:rgba(255,255,255,.85);margin-top:2px}
 #social-share-block{margin-top:10px;padding:10px 4px 6px;text-align:center}
 .btn-social{display:inline-grid;place-items:center;width:40px;height:42px;margin:0 6px 4px;border-radius:12px;color:#fff;text-decoration:none;box-shadow:inset 0 -3px rgba(0,0,0,.3)}
 .btn-social svg{width:22px;height:22px}
 .btn-home{background:var(--green)}
 .btn-rpg{background:#6b4fbb}
+.btn-news{background:#e0662d}
 
-/* centre: the play menu */
+/* centre: play menu */
 #start-menu{width:300px;padding:20px}
-.menu-option{display:flex;align-items:center;justify-content:center;width:100%;height:40px;line-height:1;margin-bottom:8px;border:0;border-radius:5px;text-align:center;text-decoration:none;cursor:pointer;font:16px var(--f);color:#fff}
-.menu-option:focus-visible{outline:none;box-shadow:0 0 1px 1px var(--green),0 0 0 3px #fff}
-.player-name-input{display:block;background:#fff;color:#000;font-weight:700;padding:0;cursor:text;text-align:center}
-.player-name-input::placeholder{color:#8a8a8a;font-weight:700}
-.btn-hollow{display:block;appearance:none;background:rgba(0,0,0,.35);border:2px solid #00ff00;line-height:36px;padding:0 30px;text-align-last:center;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px}
-.btn-hollow option{color:#000}
-.btn-green{background:var(--green);border-bottom:2px solid var(--green-edge);box-shadow:inset 0 -2px var(--green-edge);text-shadow:0 1px 2px rgba(0,0,0,.25)}
-.btn-play{height:50px;font-size:21px;font-weight:700;letter-spacing:.02em}
-.btn-team-option{background:var(--teal);border-bottom:2px solid var(--teal-edge);box-shadow:inset 0 -2px var(--teal-edge);text-shadow:0 1px 2px rgba(0,0,0,.25)}
-.btns-double-row{display:flex;gap:4px}
-.btn-help{background:var(--grey);border-bottom:2px solid var(--grey-edge);box-shadow:inset 0 -2px var(--grey-edge);text-shadow:0 1px 2px rgba(0,0,0,.25);margin-bottom:0}
-.btn-darken{transition:filter .25s ease}
-.btn-darken:hover,.btn-darken:active{filter:brightness(80%)}
-.btn-green[aria-pressed="true"],.btn-team-option[aria-pressed="true"],.btn-help[aria-expanded="true"]{filter:brightness(85%)}
+.name-row{display:flex;gap:4px}
+.player-name-input{display:block;flex:1;min-width:0;background:#fff;color:#000;font-weight:700;padding:0;cursor:text;text-align:center;text-shadow:none}
+.player-name-input::placeholder{color:#6b6b6b;font-weight:700}
+.btn-dice{width:20%;flex:none}
+.server-select{display:block;appearance:none;background:rgba(0,0,0,.35);border:2px solid #00ff00;padding:0 30px;text-align-last:center;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:11px}
+.server-select option{color:#000}
+#btn-help{margin-bottom:0}
 
 .drawer{display:none;padding-top:6px}
 .drawer.open{display:block}
 .drawer h2{font-size:20px;margin:16px 0 8px;text-align:center}
 .drawer p{margin:6px;line-height:1.35}
-.drawer .help-action{font-weight:400}
 .drawer .help-control{font-weight:700}
-.drawer code,.drawer pre{font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
-.drawer pre{background:rgba(0,0,0,.45);border-radius:5px;padding:8px 10px;margin:8px 0;white-space:pre-wrap}
-.drawer a{color:var(--gold)}
 
-/* right column: news */
-#news-block{width:300px;height:323px;margin-left:30px;padding:20px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
-.news-header{display:block;margin:0;font-size:20px;color:var(--gold)}
+/* right column: titled block, like survev's pass panel, holding the news */
+#news-block{width:300px;height:323px;margin-left:30px;display:flex;flex-direction:column;overflow:hidden}
+.block-head{display:flex;align-items:center;justify-content:space-between;margin:20px 20px 0;padding:0 12px;height:36px;background:rgba(0,0,0,.45);font-weight:700;font-size:17px;letter-spacing:.02em;text-transform:uppercase}
+.block-head svg{width:22px;height:22px;opacity:.9}
+.news-scroll{flex:1;overflow-y:auto;padding:4px 20px 18px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
 .news-item{padding-top:12px}
 .news-item + .news-item{margin-top:12px;border-top:1px solid rgba(255,255,255,.15)}
 .news-date{font-size:13px;color:rgba(255,255,255,.7)}
 .news-paragraph{display:block;margin:6px 0 0;line-height:1.35}
 .news-paragraph .highlight{font-weight:700;color:var(--gold)}
+#news-block.flash{animation:flash 1s ease}
+@keyframes flash{30%{box-shadow:0 0 0 3px var(--gold)}}
 
-/* corners */
-#start-top-right{position:absolute;top:var(--side-pad);right:var(--side-pad);z-index:2;display:flex;gap:6px}
-.btn-start-option{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:5px;background:var(--block);color:#fff;text-decoration:none;font-size:15px}
-.btn-start-option svg{width:18px;height:18px}
+/* top right: an account-style box with a stack of blue buttons below it */
+#start-top-right{position:absolute;top:var(--side-pad);right:var(--side-pad);z-index:2;width:232px}
+.top-box{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px;border-radius:5px;background:var(--block);color:#fff;text-decoration:none;font-size:17px}
+.top-box svg{width:30px;height:30px;flex:none}
+.top-buttons{margin-top:10px;padding:14px 14px 6px;border-radius:5px;background:var(--block)}
+.top-buttons .menu-option{justify-content:space-between;padding:0 10px 0 16px}
+.top-buttons .menu-option span{flex:1;text-align:center}
+
+/* bottom corners */
 #start-bottom-middle{position:absolute;left:var(--side-pad);bottom:20px;z-index:2;line-height:1.5}
-#start-bottom-middle a{display:block;color:#fff;text-decoration:none;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+#start-bottom-middle a,#start-bottom-middle span{display:block;color:#fff;text-decoration:none;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 #start-bottom-middle a:hover{text-decoration:underline}
 #start-bottom-middle .footer-after::after{content:"\B7";margin:0 10px;color:var(--green)}
-#start-bottom-right{position:absolute;right:var(--side-pad);bottom:20px;z-index:2;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,.6);text-align:right}
-#version{display:inline-block;padding:4px 10px;border-radius:5px;background:var(--block);color:#fff;text-decoration:none;font-size:15px;text-shadow:none}
+#start-bottom-right{position:absolute;right:var(--side-pad);bottom:var(--side-pad);z-index:2;display:flex;align-items:flex-end;gap:8px}
+#version{align-self:center;margin-right:4px;padding:4px 10px;border-radius:5px;background:var(--block);font-size:15px}
+.btn-start-option{display:grid;place-items:center;width:48px;height:42px;border:0;border-radius:5px;cursor:pointer;color:#fff;text-decoration:none;background:var(--grey);box-shadow:inset 0 -4px var(--grey-edge)}
+.btn-start-option svg{width:26px;height:26px;margin-top:-3px}
+.btn-start-option:focus-visible{outline:3px solid #fff;outline-offset:2px}
 
 /* narrower screens: stack the columns, menu first */
+@media (max-width:1100px){
+  #start-top-right{position:static;width:min(300px,100%);margin:16px auto 0;order:-2}
+  .top-buttons{display:none}
+  #start-row-header{margin:28px auto 26px;height:auto}
+}
 @media (max-width:1000px){
-  #start-row-header{margin:84px auto 22px;height:auto}
-  .logo{font-size:clamp(44px,13vw,66px)}
+  .logo-box{font-size:clamp(38px,11vw,64px);padding:2px 16px 0}
+  .logo-sub{font-size:clamp(24px,7vw,38px)}
+  .logo{gap:12px}
   #start-row-top{flex-direction:column;align-items:center;gap:14px}
   #left-column,#news-block{margin:0}
   #start-menu{order:-1}
   #news-block{height:auto;max-height:none}
+  .news-scroll{overflow:visible}
   #start-main{padding-bottom:40px}
-  #start-bottom-middle,#start-bottom-right{position:static;text-align:center;margin-top:18px}
-  #start-bottom-middle a{display:inline}
+  #start-bottom-middle,#start-bottom-right{position:static;margin-top:18px;justify-content:center}
+  #start-bottom-middle{text-align:center}
+  #start-bottom-middle a,#start-bottom-middle span{display:inline}
 }
 @media (max-width:360px){
   #left-column,#start-menu,#news-block{width:100%}
 }
-@media (prefers-reduced-motion:reduce){.btn-darken{transition:none}}
+@media (prefers-reduced-motion:reduce){.btn-darken{transition:none}#news-block.flash{animation:none}}
 </style>
 </head>
 <body>
 <div id="background" aria-hidden="true"><div id="start-overlay"></div></div>
 
-<div id="start-top-right">
-  <a class="btn-start-option btn-darken" href="/">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
-    All games
-  </a>
-</div>
-
 <main id="start-main">
+  <div id="start-top-right">
+    <a class="top-box btn-darken" href="/">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="9" width="28" height="16" rx="8" fill="#fff"/><path d="M9 14v6M6 17h6" stroke="#2b2b2b" stroke-width="2.4" stroke-linecap="round"/><circle cx="21" cy="15" r="2" fill="#f2c35b"/><circle cx="24.5" cy="19" r="2" fill="#83af50"/></svg>
+      br672i Games
+    </a>
+    <div class="top-buttons">
+      <button type="button" class="menu-option btn-blue btn-darken" data-drawer="help" aria-expanded="false" aria-controls="drawer-help"><span>Controls</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+      <button type="button" class="menu-option btn-blue btn-darken" data-show-news><span>What's New</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg></button>
+      <a class="menu-option btn-blue btn-darken" href="/dnd-rpg-adventure/"><span>D&amp;D RPG</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+    </div>
+  </div>
+
   <header id="start-row-header">
-    <h1 class="logo">RINGFALL<span>.IO</span><span class="logo-sub">Battle royale</span></h1>
+    <h1 class="logo"><span class="logo-box">RINGFALL<span>.IO</span></span><span class="logo-sub">BATTLE ROYALE</span></h1>
   </header>
 
   <div id="start-row-top">
     <div id="left-column">
-      <a id="featured" class="menu-block" href="#news-airdrops">
+      <a id="featured" href="#news-airdrops" data-show-news>
         <img src="img/shot-airdrop.jpg" width="1920" height="1080" alt="A parachuted airdrop crate coming down beside the police station">
         <span class="cap"><span class="tag">New</span><b>Airdrops have landed</b><small>Four supply drops a match. Top-tier loot inside.</small></span>
       </a>
@@ -154,40 +190,52 @@ a{color:inherit}
         <a class="btn-social btn-rpg btn-darken" href="/dnd-rpg-adventure/" aria-label="D&amp;D RPG Adventure" title="Also try: D&amp;D RPG Adventure">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>
         </a>
+        <a class="btn-social btn-news btn-darken" href="#news-block" data-show-news aria-label="What's new" title="What's new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>
+        </a>
       </div>
     </div>
 
     <div id="start-menu" class="menu-block">
       <form id="play-form" action="play/" autocomplete="off">
-        <label for="player-name-input" class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Your name</label>
-        <input id="player-name-input" class="menu-option player-name-input" type="text" maxlength="16" placeholder="Enter your name here" spellcheck="false">
-        <label for="mode-select" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Game mode</label>
-        <select id="mode-select" class="menu-option btn-hollow">
-          <option value="solo">Solo · 24 bots</option>
+        <div class="name-row">
+          <label for="player-name-input" class="sr">Your name</label>
+          <input id="player-name-input" class="menu-option player-name-input" type="text" maxlength="16" placeholder="Enter your name here" spellcheck="false">
+          <button type="button" id="btn-dice" class="menu-option btn-blue btn-darken btn-dice" aria-label="Pick a random name" title="Random name">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="#fff"/><circle cx="8" cy="8" r="1.7" fill="#1e90ff"/><circle cx="16" cy="8" r="1.7" fill="#1e90ff"/><circle cx="12" cy="12" r="1.7" fill="#1e90ff"/><circle cx="8" cy="16" r="1.7" fill="#1e90ff"/><circle cx="16" cy="16" r="1.7" fill="#1e90ff"/></svg>
+          </button>
+        </div>
+        <label for="mode-select" class="sr">Game mode</label>
+        <select id="mode-select" class="menu-option server-select">
+          <option value="solo">Solo [24 bots]</option>
         </select>
-        <button type="submit" class="menu-option btn-green btn-play btn-darken">Play Solo</button>
+        <button type="submit" class="menu-option btn-green btn-darken">Play Solo</button>
       </form>
-      <div class="btns-double-row">
-        <button type="button" class="menu-option btn-team-option btn-darken" data-drawer="online" aria-expanded="false" aria-controls="drawer-online">Play Online</button>
-        <a class="menu-option btn-team-option btn-darken" href="/">All Games</a>
+      <div class="row">
+        <button type="button" class="menu-option btn-green btn-darken" data-drawer="online" aria-expanded="false" aria-controls="drawer-online">Play Online</button>
+        <a class="menu-option btn-yellow btn-darken" href="/dnd-rpg-adventure/">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z" fill="rgba(0,0,0,.25)"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>D&amp;D RPG</a>
       </div>
-      <button type="button" class="menu-option btn-help btn-darken" data-drawer="help" aria-expanded="false" aria-controls="drawer-help">How to Play</button>
+      <div class="row">
+        <a class="menu-option btn-teal btn-darken" href="/">All Games</a>
+        <button type="button" class="menu-option btn-teal btn-darken" data-show-news>What's New</button>
+      </div>
+      <button type="button" id="btn-help" class="menu-option btn-grey btn-darken" data-drawer="help" aria-expanded="false" aria-controls="drawer-help">How to Play</button>
 
       <div id="drawer-help" class="drawer">
         <h2>Controls</h2>
-        <p><span class="help-action">Move</span>: <span class="help-control">W, A, S, D</span></p>
-        <p><span class="help-action">Aim</span>: <span class="help-control">Mouse</span></p>
-        <p><span class="help-action">Punch / Shoot</span>: <span class="help-control">Left click</span></p>
-        <p><span class="help-action">Change weapons</span>: <span class="help-control">1, 2, 3</span></p>
-        <p><span class="help-action">Throwables</span>: <span class="help-control">4 or G</span></p>
-        <p><span class="help-action">Last weapon</span>: <span class="help-control">Q</span></p>
-        <p><span class="help-action">Reload</span>: <span class="help-control">R</span></p>
-        <p><span class="help-action">Pick up</span>: <span class="help-control">F or E</span></p>
-        <p><span class="help-action">Heal</span>: <span class="help-control">7, 8, 9, 0</span></p>
+        <p>Move: <span class="help-control">W, A, S, D</span></p>
+        <p>Aim: <span class="help-control">Mouse</span></p>
+        <p>Punch / Shoot: <span class="help-control">Left click</span></p>
+        <p>Change weapons: <span class="help-control">1, 2, 3</span></p>
+        <p>Throwables: <span class="help-control">4 or G</span></p>
+        <p>Last weapon: <span class="help-control">Q</span></p>
+        <p>Reload: <span class="help-control">R</span></p>
+        <p>Pick up: <span class="help-control">F or E</span></p>
+        <p>Heal: <span class="help-control">7, 8, 9, 0</span></p>
         <h2>Goal</h2>
         <p>Loot guns and armor, stay inside the white circle as the red zone closes, and be the last one standing.</p>
       </div>
-
       <div id="drawer-online" class="drawer">
         <h2>Play with friends</h2>
         <p>Online matches are hosted on a computer running the Ringfall server, so they need a host on your network.</p>
@@ -195,56 +243,72 @@ a{color:inherit}
       </div>
     </div>
 
-    <div id="news-block" class="menu-block" aria-labelledby="news-h">
-      <h2 class="news-header" id="news-h">What's New!</h2>
-      <div class="news-item">
-        <small class="news-date">November 14th, 2026</small>
-        <p class="news-paragraph"><strong>Lock and Load</strong></p>
-        <p class="news-paragraph">Empty guns now <span class="highlight">reload themselves</span> when you pick one up, switch to it or find ammo.</p>
-        <p class="news-paragraph">This page also got a new look, and <span class="highlight">all our games</span> now share a home page.</p>
+    <section id="news-block" class="menu-block" aria-labelledby="news-h">
+      <div class="block-head">
+        <h2 id="news-h" style="font:inherit;margin:0">What's New!</h2>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>
       </div>
-      <div class="news-item">
-        <small class="news-date">November 11th, 2026</small>
-        <p class="news-paragraph"><strong>Going Public</strong></p>
-        <p class="news-paragraph">Ringfall is now playable on <span class="highlight">GitHub Pages</span>, right in your browser.</p>
+      <div class="news-scroll">
+        <div class="news-item">
+          <small class="news-date">November 14th, 2026</small>
+          <p class="news-paragraph"><strong>Lock and Load</strong></p>
+          <p class="news-paragraph">Empty guns now <span class="highlight">reload themselves</span> when you pick one up, switch to it or find ammo.</p>
+          <p class="news-paragraph">This page also got a new look, and <span class="highlight">all our games</span> now share a home page.</p>
+        </div>
+        <div class="news-item">
+          <small class="news-date">November 11th, 2026</small>
+          <p class="news-paragraph"><strong>Going Public</strong></p>
+          <p class="news-paragraph">Ringfall is now playable <span class="highlight">right in your browser</span>.</p>
+        </div>
+        <div class="news-item">
+          <small class="news-date">October 25th, 2026</small>
+          <p class="news-paragraph"><strong>Open Gates</strong></p>
+          <p class="news-paragraph">The <span class="highlight">military camp</span> can now be entered from both the north and south gates.</p>
+        </div>
+        <div class="news-item" id="news-airdrops">
+          <small class="news-date">October 12th, 2026</small>
+          <p class="news-paragraph"><strong>Special Delivery</strong></p>
+          <p class="news-paragraph">Every time the red zone closes, a plane drops a parachuted <span class="highlight">airdrop</span> into the safe circle: an M1 Garand, AWM-S, M249 or other top-tier gun, plus level-3 gear or an 8x scope.</p>
+          <p class="news-paragraph">Don't stand underneath it when it lands.</p>
+        </div>
+        <div class="news-item">
+          <small class="news-date">October 12th, 2026</small>
+          <p class="news-paragraph"><strong>Patched Up</strong></p>
+          <p class="news-paragraph">Bandages, med kits, sodas and pills have <span class="highlight">all-new art</span>, and you can see who's healing.</p>
+        </div>
+        <div class="news-item">
+          <small class="news-date">Earlier</small>
+          <p class="news-paragraph"><strong>New Neighbors</strong></p>
+          <p class="news-paragraph">A <span class="highlight">police station</span> with an armory, a <span class="highlight">bank</span> vault, greenhouses, gas stations with exploding pumps, and outhouses.</p>
+        </div>
       </div>
-      <div class="news-item">
-        <small class="news-date">October 25th, 2026</small>
-        <p class="news-paragraph"><strong>Open Gates</strong></p>
-        <p class="news-paragraph">The <span class="highlight">military camp</span> can now be entered from both the north and south gates.</p>
-      </div>
-      <div class="news-item" id="news-airdrops">
-        <small class="news-date">October 12th, 2026</small>
-        <p class="news-paragraph"><strong>Special Delivery</strong></p>
-        <p class="news-paragraph">Every time the red zone closes, a plane drops a parachuted <span class="highlight">airdrop</span> into the safe circle: an M1 Garand, AWM-S, M249 or other top-tier gun, plus level-3 gear or an 8x scope.</p>
-        <p class="news-paragraph">Don't stand underneath it when it lands.</p>
-      </div>
-      <div class="news-item">
-        <small class="news-date">October 12th, 2026</small>
-        <p class="news-paragraph"><strong>Patched Up</strong></p>
-        <p class="news-paragraph">Bandages, med kits, sodas and pills have <span class="highlight">all-new art</span>, and you can see who's healing.</p>
-      </div>
-      <div class="news-item">
-        <small class="news-date">Earlier</small>
-        <p class="news-paragraph"><strong>New Neighbors</strong></p>
-        <p class="news-paragraph">A <span class="highlight">police station</span> with an armory, a <span class="highlight">bank</span> vault, greenhouses, gas stations with exploding pumps, and outhouses.</p>
-      </div>
-    </div>
+    </section>
   </div>
 
   <nav id="start-bottom-middle" aria-label="Links">
-    <a class="footer-after" href="#news-block">What's new</a>
-    <a href="/">All games</a>
+    <a class="footer-after" href="#news-block" data-show-news>What's new</a>
+    <a class="footer-after" href="/">All games</a>
+    <span>Free to play. No sign-up.</span>
   </nav>
   <div id="start-bottom-right">
     <!-- the deploy workflow swaps in the build number; a local copy shows "dev" -->
     <span id="version">ver __VERSION__</span>
+    <button type="button" class="btn-start-option btn-darken" data-drawer="help" aria-expanded="false" aria-controls="drawer-help" aria-label="Controls" title="Controls">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+    </button>
+    <button type="button" class="btn-start-option btn-darken" id="btn-fullscreen" aria-label="Fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+    <a class="btn-start-option btn-darken" href="/" aria-label="All games" title="All games">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+    </a>
   </div>
 </main>
 
 <script>
 const ver = document.getElementById('version');
 if (ver.textContent.includes('__')) ver.textContent = 'ver dev';
+
 // The game page reads the name from the same browser storage key, so it comes pre-filled there.
 const nameInput = document.getElementById('player-name-input');
 try { nameInput.value = localStorage.getItem('ringfall-name') || ''; } catch (e) {}
@@ -254,13 +318,41 @@ document.getElementById('play-form').addEventListener('submit', e => {
   try { if (name) localStorage.setItem('ringfall-name', name); } catch (err) {}
   location.href = 'play/';
 });
-// "How to Play" and "Play Online" open their panel inside the menu, one at a time
-const toggles = document.querySelectorAll('[data-drawer]');
-toggles.forEach(btn => btn.addEventListener('click', () => {
-  const open = btn.getAttribute('aria-expanded') !== 'true';
-  toggles.forEach(b => { b.setAttribute('aria-expanded', 'false'); document.getElementById('drawer-' + b.dataset.drawer).classList.remove('open'); });
-  if (open) { btn.setAttribute('aria-expanded', 'true'); document.getElementById('drawer-' + btn.dataset.drawer).classList.add('open'); }
+
+// The blue dice button fills in a random name (the same pool the bots use).
+const NAMES = ['Kestrel', 'Moth', 'Juniper', 'Rook', 'Vesper', 'Tamsin', 'Okoro', 'Brindle', 'Halcyon', 'Pike', 'Wren', 'Osei', 'Marlowe', 'Quill', 'Sable', 'Indigo', 'Fenwick', 'Talon', 'Corvid', 'Nadia', 'Ruckus', 'Lumen', 'Bastion', 'Yarrow', 'Thistle', 'Ember', 'Gale', 'Sorrel'];
+document.getElementById('btn-dice').addEventListener('click', () => {
+  let n; do { n = NAMES[Math.floor(Math.random() * NAMES.length)] + Math.floor(Math.random() * 90 + 10); } while (n === nameInput.value);
+  nameInput.value = n; nameInput.focus();
+});
+
+// "How to Play"/"Controls" and "Play Online" open their panel inside the menu, one at a time.
+const drawerBtns = document.querySelectorAll('[data-drawer]');
+function setDrawer(name) {
+  drawerBtns.forEach(b => b.setAttribute('aria-expanded', String(b.dataset.drawer === name)));
+  document.querySelectorAll('.drawer').forEach(d => d.classList.toggle('open', d.id === 'drawer-' + name));
+}
+drawerBtns.forEach(btn => btn.addEventListener('click', () => {
+  const name = btn.getAttribute('aria-expanded') === 'true' ? null : btn.dataset.drawer;
+  setDrawer(name);
+  if (name && !btn.closest('#start-menu')) document.getElementById('start-menu').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }));
+
+// "What's New" buttons bring the news panel into view and flash its edge.
+const news = document.getElementById('news-block');
+document.querySelectorAll('[data-show-news]').forEach(el => el.addEventListener('click', e => {
+  e.preventDefault();
+  const target = el.getAttribute('href') === '#news-airdrops' ? document.getElementById('news-airdrops') : null;
+  news.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (target) news.querySelector('.news-scroll').scrollTop = target.offsetTop - news.querySelector('.news-scroll').offsetTop;
+  news.classList.remove('flash'); void news.offsetWidth; news.classList.add('flash');
+}));
+
+// Fullscreen toggle (bottom right)
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+});
 </script>
 </body>
 </html>
