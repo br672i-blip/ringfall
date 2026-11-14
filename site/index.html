@@ -179,9 +179,9 @@ a{color:inherit}
 
   <div id="start-row-top">
     <div id="left-column">
-      <a id="featured" href="#news-airdrops" data-show-news>
-        <img src="img/shot-airdrop.jpg" width="1920" height="1080" alt="A parachuted airdrop crate coming down beside the police station">
-        <span class="cap"><span class="tag">New</span><b>Airdrops have landed</b><small>Four supply drops a match. Top-tier loot inside.</small></span>
+      <a id="featured" href="#news-tanks" data-show-news>
+        <img src="img/tank.jpg" width="900" height="506" alt="A player driving a tank outside the military camp, firing a shell">
+        <span class="cap"><span class="tag">New</span><b>Tanks have rolled in</b><small>Find one, press F, and bring the big gun.</small></span>
       </a>
       <div id="social-share-block" class="menu-block">
         <a class="btn-social btn-home btn-darken" href="/" aria-label="All games" title="All games">
@@ -249,6 +249,12 @@ a{color:inherit}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>
       </div>
       <div class="news-scroll">
+        <div class="news-item" id="news-tanks">
+          <small class="news-date">November 14th, 2026</small>
+          <p class="news-paragraph"><strong>Heavy Metal</strong></p>
+          <p class="news-paragraph">Two <span class="highlight">tanks</span> are parked on every map, one outside the military camp. Press <span class="highlight">F</span> to climb in, drive with WASD and click to fire shells that burst where you aim.</p>
+          <p class="news-paragraph">The armor soaks up bullets, but the red zone still reaches you, and a wrecked tank explodes.</p>
+        </div>
         <div class="news-item">
           <small class="news-date">November 14th, 2026</small>
           <p class="news-paragraph"><strong>Lock and Load</strong></p>
@@ -342,7 +348,7 @@ drawerBtns.forEach(btn => btn.addEventListener('click', () => {
 const news = document.getElementById('news-block');
 document.querySelectorAll('[data-show-news]').forEach(el => el.addEventListener('click', e => {
   e.preventDefault();
-  const target = el.getAttribute('href') === '#news-airdrops' ? document.getElementById('news-airdrops') : null;
+  const href = el.getAttribute('href') || '', target = href.startsWith('#news-') ? document.getElementById(href.slice(1)) : null;
   news.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   if (target) news.querySelector('.news-scroll').scrollTop = target.offsetTop - news.querySelector('.news-scroll').offsetTop;
   news.classList.remove('flash'); void news.offsetWidth; news.classList.add('flash');

@@ -465,7 +465,7 @@ function segRect(x0, y0, dx, dy, rx, ry, rw, rh) {
 function circleRect(cx, cy, r, rx, ry, rw, rh) { const nx = clamp(cx, rx, rx + rw), ny = clamp(cy, ry, ry + rh); return d2(cx, cy, nx, ny) < r * r; }
 
 // ---------- state ----------
-let grid, obstacles, buildings, ponds, river, bridges, loot, tufts, players, bullets, grenades, clouds = [], strobes = [], strikes = [], planes = [], drops = [], particles, decals, zone, me, time, mapImg;
+let grid, obstacles, buildings, ponds, river, bridges, loot, tufts, players, bullets, grenades, clouds = [], strobes = [], strikes = [], planes = [], drops = [], tanks = [], particles, decals, zone, me, time, mapImg;
 // emit() is a no-op in single-player; the multiplayer server replaces it to broadcast events.
 let emit = () => {}, obsId = 0;
 let state = 'menu', paused = false, spectate = null, startTime = 0, uid = 1, myName = 'Player';
@@ -976,6 +976,7 @@ function genWorld() {
     if (Math.random() < .3) { const a = rand(0, TAU); if (canPlace(x + Math.cos(a) * 48, y + Math.sin(a) * 48, 24, -20)) makeObstacle('barrel', x + Math.cos(a) * 48, y + Math.sin(a) * 48); }
   }
   for (let i = 0; i < 3200; i++) tufts.push([rand(0, MAP), rand(0, MAP), rand(2, 5), Math.random()]);
+  placeTanks();
   const floor = []; for (let i = 0, t = 0; i < many(35) && t < 6000; t++) { const x = rand(200, MAP - 200), y = rand(200, MAP - 200); if (isFree(x, y, 30) && !inStructure(x, y, 30, 0) && floor.every(f => d2(f[0], f[1], x, y) > 420 * 420)) { spawnLoot(x, y); floor.push([x, y]); i++; } }
   buildMinimap();
 }
@@ -1119,6 +1120,7 @@ function autoPickup(p) {
 }
 // The item F would pick up: the nearest gun or gear upgrade/swap in reach
 function interactTarget(p) {
+  if (p.tank) return null;
   let best = null, bd = 64 * 64;
   for (const it of loot) {
     if (!(it.kind === 'gun' || it.kind === 'helmet' || it.kind === 'vest' || it.kind === 'bag')) continue;
@@ -1352,8 +1354,9 @@ function damage(p, amt, src, wid) {
   hitFx(p, src, wid === 'gas'); if (wid !== 'gas') emit('hit', p.id, src ? src.id : -1);
   if (p.hp <= 0) kill(p, src, wid);
 }
-const weaponLabel = wid => wid === 'gas' ? 'the red zone' : wid === 'barrel' ? 'an exploding barrel' : wid === 'frag' ? 'a frag grenade' : wid === 'mirv' ? 'a MIRV grenade' : wid === 'airstrike' ? 'an airstrike' : wid === 'airdrop' ? 'a falling airdrop' : wid === 'fists' ? 'their fists' : GUNS[wid] ? (GUNS[wid].dual ? 'dual ' + GUNS[GUNS[wid].base].name + 's' : (GUNS[wid].an ? 'an ' : 'a ') + GUNS[wid].name) : '';
+const weaponLabel = wid => wid === 'gas' ? 'the red zone' : wid === 'barrel' ? 'an exploding barrel' : wid === 'frag' ? 'a frag grenade' : wid === 'mirv' ? 'a MIRV grenade' : wid === 'airstrike' ? 'an airstrike' : wid === 'airdrop' ? 'a falling airdrop' : wid === 'tank' ? 'a tank' : wid === 'fists' ? 'their fists' : GUNS[wid] ? (GUNS[wid].dual ? 'dual ' + GUNS[GUNS[wid].base].name + 's' : (GUNS[wid].an ? 'an ' : 'a ') + GUNS[wid].name) : '';
 function kill(p, src, wid) {
+  if (p.tank) { p.tank.driver = null; p.tank.v = 0; p.tank = null; }
   p.alive = false; p.hp = 0; p.healT = 0; p.reloadT = 0;
   const killer = src && src !== p ? src : null;
   if (killer) killer.kills++;
@@ -1431,7 +1434,8 @@ function explode(x, y, src, wid, R, maxDmg) {
     const a = i / FRAG.shrapnel * TAU + rand(-.15, .15);
     bullets.push({ x, y, dx: Math.cos(a), dy: Math.sin(a), speed: rand(1300, 1700), dmg: 4, owner: src, wid, range: R * rand(1.1, 1.5), trav: 0, falloff: false, w: 1.8, shrap: true });
   }
-  for (const p of players) if (p.alive) { const d = Math.hypot(p.x - x, p.y - y); if (d < R && los(x, y, p.x, p.y)) damage(p, 8 + maxDmg * (1 - d / R), src, wid); }
+  for (const p of players) if (p.alive && !p.tank) { const d = Math.hypot(p.x - x, p.y - y); if (d < R && los(x, y, p.x, p.y)) damage(p, 8 + maxDmg * (1 - d / R), src, wid); }
+  for (const t of tanks.slice()) { const d = Math.max(0, Math.hypot(t.x - x, t.y - y) - TANK.r * .5); if (d < R) damageTank(t, (8 + maxDmg * (1 - d / R)) * 1.6, src); }
   grid.query(x - R, y - R, x + R, y + R, PQ);
   for (const o of PQ.slice()) if (!o.dead && o.hp < Infinity) { const ox = o.shape === 'c' ? o.x : o.x + o.w / 2, oy = o.shape === 'c' ? o.y : o.y + o.h / 2; if (d2(ox, oy, x, y) < R * R) damageObstacle(o, 90, src); }
 }
@@ -1493,6 +1497,11 @@ function updatePlayer(p, dt) {
   if (inp.heal) { startHeal(p, inp.heal); inp.heal = null; }
   if (p.healT > 0) { p.healT -= dt; if (p.healT <= 0) { p.healT = 0; finishHeal(p); } }
   if (p.boost > 0) { const tier = p.boost > 87.5 ? 3 : p.boost > 50 ? 2 : p.boost > 25 ? 1 : 0; p.hp = Math.min(100, p.hp + [1, 1.5, 2, 2.5][tier] * dt); p.boost = Math.max(0, p.boost - 1.1 * dt); }
+  if (p.tank) { // driving: the tank moves and shoots; the red zone still reaches the crew
+    driveTank(p.tank, p, dt);
+    if (Math.hypot(p.x - zone.cx, p.y - zone.cy) > zone.r) damage(p, PHASES[Math.min(zone.phase, PHASES.length - 1)].dps * dt, null, 'gas');
+    return;
+  }
   let mx = inp.mx, my = inp.my; const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
   const g = curGun(p);
   let sp = 250 * (g ? GUNS[g.id].move : 1.05);
@@ -1687,6 +1696,112 @@ function landFx(x, y) {
   sfx('crate', x, y);
 }
 
+// ---------- tanks ----------
+// Two per map: one parked outside the military camp, one somewhere in the open. Press F beside one to
+// climb in. WASD drives the hull, the turret follows the aim, and a click fires a shell that bursts where
+// you aim (or on whatever it hits first). The hull shields the driver; when it is destroyed it explodes
+// and throws them out.
+const TANK = { r: 44, hp: 500, speed: 230, turn: 2.2, turretTurn: 3.4, reload: 2.4, shellSpeed: 1300, range: 950, blastR: 140, blastDmg: 80, barrel: 62 };
+let tankId = 1;
+function makeTank(x, y, a) { return { id: tankId++, x, y, a, ta: a, v: 0, hp: TANK.hp, cd: 0, driver: null, hit: 0 }; }
+function placeTanks() {
+  tanks = [];
+  const okSpot = (x, y) => isFree(x, y, TANK.r + 10) && !buildingAt(x, y) && x > 300 && y > 300 && x < MAP - 300 && y < MAP - 300;
+  const camp = buildings.find(b => b.kind === 'camp');
+  if (camp) {
+    const [x, y] = freeSpotNear(camp.x + camp.w / 2 + rand(-80, 80), camp.y + camp.h + 120, TANK.r + 10);
+    if (okSpot(x, y)) tanks.push(makeTank(x, y, rand(0, TAU)));
+  }
+  for (let k = 0; k < 400 && tanks.length < 2; k++) {
+    const x = rand(400, MAP - 400), y = rand(400, MAP - 400);
+    if (okSpot(x, y) && tanks.every(t => d2(t.x, t.y, x, y) > 1600 * 1600)) tanks.push(makeTank(x, y, rand(0, TAU)));
+  }
+}
+// The free tank within reach of a player, if any
+function nearTank(p) {
+  let best = null, bd = (TANK.r + 40) ** 2;
+  for (const t of tanks) { if (t.driver) continue; const d = d2(p.x, p.y, t.x, t.y); if (d < bd) { bd = d; best = t; } }
+  return best;
+}
+function enterTank(p, t) {
+  if (t.driver || p.cooking) return;
+  t.driver = p; p.tank = t; p.healT = 0; p.burst = 0; p.pressUsed = p.input.press;
+  t.ta = p.angle;
+}
+function exitTank(p) {
+  const t = p.tank; if (!t) return;
+  t.driver = null; p.tank = null; t.v = 0;
+  // step out of the side hatch, or wherever there is room
+  const side = t.a + Math.PI / 2;
+  const [x, y] = freeSpotNear(t.x + Math.cos(side) * (TANK.r + p.r + 6), t.y + Math.sin(side) * (TANK.r + p.r + 6), p.r);
+  p.x = x; p.y = y; p.pressUsed = p.input.press; p.fireCd = Math.max(p.fireCd, .3);
+}
+function driveTank(t, p, dt) {
+  const inp = p.input;
+  let mx = inp.mx, my = inp.my; const m = Math.hypot(mx, my);
+  let target = 0;
+  if (m > .1) {
+    let want = Math.atan2(my, mx), diff = angDiff(t.a, want), dir = 1;
+    if (Math.abs(diff) > 2.2) { want += Math.PI; diff = angDiff(t.a, want); dir = -.55; } // pull straight back: reverse
+    t.a += clamp(diff, -TANK.turn * dt, TANK.turn * dt);
+    target = TANK.speed * dir * Math.max(0, Math.cos(diff)) * Math.min(1, m);
+  }
+  if (inWater(t.x, t.y)) target *= .6;
+  t.v += (target - t.v) * Math.min(1, dt * 2.5);
+  t.x += Math.cos(t.a) * t.v * dt; t.y += Math.sin(t.a) * t.v * dt;
+  if (pushOut(t, TANK.r)) t.v *= .6;
+  t.ta += clamp(angDiff(t.ta, inp.angle), -TANK.turretTurn * dt, TANK.turretTurn * dt);
+  t.cd = Math.max(0, t.cd - dt);
+  if ((inp.fire || inp.press > p.pressUsed) && t.cd <= 0) { fireTank(t, p); p.pressUsed = inp.press; }
+  p.x = t.x; p.y = t.y; p.angle = t.ta; p.moving = Math.abs(t.v) > 10;
+}
+function fireTank(t, p) {
+  t.cd = TANK.reload;
+  const ca = Math.cos(t.ta), sa = Math.sin(t.ta), tipX = t.x + ca * TANK.barrel, tipY = t.y + sa * TANK.barrel;
+  const range = clamp((p.aimDist || TANK.range) - TANK.barrel, 120, TANK.range);
+  bullets.push({ x: tipX, y: tipY, dx: ca, dy: sa, speed: TANK.shellSpeed, dmg: 0, owner: p, wid: 'tank', range, trav: 0, falloff: false, w: 6, shell: true });
+  t.v -= 40; // recoil
+  tankFireFx(t); emit('tfire', t.id);
+}
+function tankFireFx(t) {
+  const ca = Math.cos(t.ta), sa = Math.sin(t.ta), x = t.x + ca * TANK.barrel, y = t.y + sa * TANK.barrel;
+  t.kick = 1;
+  particles.push({ type: 'flash', x, y, a: t.ta, life: .09, max: .09, size: 46 });
+  for (let i = 0; i < 6; i++) particles.push({ type: 'smoke', x: x + rand(-8, 8), y: y + rand(-8, 8), vx: ca * rand(30, 90) + rand(-30, 30), vy: sa * rand(30, 90) + rand(-30, 30), life: rand(.6, 1.1), max: 1.1, size: rand(12, 22) });
+  sfx('sniper', x, y); sfx('boom', x, y);
+  if (t.driver === me) cam.shake = Math.max(cam.shake, 10);
+}
+function damageTank(t, amt, src) {
+  if (t.hp <= 0) return;
+  t.hp -= amt; t.hit = .12;
+  if (src && t.driver && src !== t.driver) { src.dmg += amt; t.driver.lastHitBy = src; t.driver.lastHitT = time; }
+  if (t.hp <= 0) destroyTank(t, src);
+}
+function destroyTank(t, src) {
+  const k = tanks.indexOf(t); if (k >= 0) tanks.splice(k, 1);
+  if (t.driver) { const d = t.driver; d.tank = null; t.driver = null; }
+  decals.push({ x: t.x, y: t.y, r: TANK.r * 1.1, t: time, scorch: true });
+  explode(t.x, t.y, src, 'tank', 190, 80); // the crew is no longer shielded once the hull goes
+}
+// Tanks shove people aside, and hurt them when moving fast; they also bump into each other
+function tankCollisions() {
+  for (const t of tanks) {
+    const fast = Math.abs(t.v) > 90;
+    for (const p of players) {
+      if (!p.alive || p.tank) continue;
+      const dx = p.x - t.x, dy = p.y - t.y, rr = TANK.r + p.r, dd = dx * dx + dy * dy;
+      if (dd >= rr * rr || dd < 1e-4) continue;
+      const d = Math.sqrt(dd); p.x = t.x + dx / d * rr; p.y = t.y + dy / d * rr; pushOut(p, p.r);
+      if (fast && t.driver && time - (p.rammedT || -9) > .6) { p.rammedT = time; damage(p, 18 + Math.abs(t.v) * .1, t.driver, 'tank'); }
+    }
+  }
+  for (let i = 0; i < tanks.length; i++) for (let j = i + 1; j < tanks.length; j++) {
+    const a = tanks[i], b = tanks[j], dx = b.x - a.x, dy = b.y - a.y, rr = TANK.r * 2, dd = dx * dx + dy * dy;
+    if (dd < rr * rr && dd > 1e-4) { const d = Math.sqrt(dd), push = (rr - d) / 2; a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; a.v *= .5; b.v *= .5; }
+  }
+  for (const t of tanks) if (t.driver) { t.driver.x = t.x; t.driver.y = t.y; }
+}
+
 // ---------- game flow ----------
 function resetSim() { players = []; bullets = []; grenades = []; clouds = []; strobes = []; strikes = []; planes = []; drops = []; particles = []; decals = []; time = 0; spectate = null; me = null; paused = false; }
 function newGame() {
@@ -1736,13 +1851,14 @@ function weaponIcon(wid) {
     else if (wid === 'mirv') dot(6, '#4b3a63');
     else if (wid === 'barrel') { dot(6.5, '#626262'); g.strokeStyle = '#828282'; g.beginPath(); g.arc(0, 0, 4, 0, TAU); g.stroke(); }
     else if (wid === 'fists') dot(5.5, '#f8c574');
+    else if (wid === 'tank') { g.fillStyle = '#4b5a2e'; g.fillRect(-9, -6, 16, 12); g.strokeRect(-9, -6, 16, 12); g.fillStyle = '#2e2e2a'; g.fillRect(-10, -7, 18, 2.5); g.fillRect(-10, 4.5, 18, 2.5); g.fillStyle = '#5d6b3a'; g.beginPath(); g.arc(-2, 0, 4, 0, TAU); g.fill(); g.stroke(); g.fillRect(1, -1.2, 11, 2.4); }
     else if (wid === 'airdrop') { g.fillStyle = '#6d7f8c'; g.fillRect(-6, -6, 12, 12); g.strokeRect(-6, -6, 12, 12); g.fillStyle = '#e0b62a'; g.fillRect(-1.5, -6, 3, 12); g.fillRect(-6, -1.5, 12, 3); }
     else if (wid === 'airstrike') { g.fillStyle = '#d6d6d6'; g.beginPath(); g.moveTo(9, 0); g.lineTo(-3, -1.5); g.lineTo(-6, -7); g.lineTo(-8, -7); g.lineTo(-6, -1.5); g.lineTo(-10, -1.5); g.lineTo(-11, -4); g.lineTo(-12, 0); g.lineTo(-11, 4); g.lineTo(-10, 1.5); g.lineTo(-6, 1.5); g.lineTo(-8, 7); g.lineTo(-6, 7); g.lineTo(-3, 1.5); g.closePath(); g.fill(); }
     else return FEED_ICONS[wid] = '';
   }
   return FEED_ICONS[wid] = c.toDataURL();
 }
-const CAUSE = { gas: 'the red zone', barrel: 'an explosion', frag: 'their own grenade', mirv: 'their own grenade', airstrike: 'an airstrike', airdrop: 'a falling airdrop' };
+const CAUSE = { gas: 'the red zone', barrel: 'an explosion', frag: 'their own grenade', mirv: 'their own grenade', airstrike: 'an airstrike', airdrop: 'a falling airdrop', tank: 'a tank' };
 function addFeedRow(el) {
   const box = document.getElementById('feed'); box.prepend(el);
   while (box.children.length > 6) box.lastChild.remove();
@@ -1819,7 +1935,13 @@ function applyAct(p, a, v) {
     case 'last': i.slot = p.lastSlot; break;
     case 'reload': i.reload = true; break;
     case 'heal': if (HEALS[v]) i.heal = v; break;
-    case 'grab': { const it = interactTarget(p); if (it) forcePickup(p, it); break; }
+    case 'grab': {
+      if (p.tank) { exitTank(p); break; }
+      const it = interactTarget(p), tk = nearTank(p);
+      if (tk && (!it || d2(p.x, p.y, tk.x, tk.y) - (TANK.r + 10) ** 2 < d2(p.x, p.y, it.x, it.y))) enterTank(p, tk);
+      else if (it) forcePickup(p, it);
+      break;
+    }
     case 'cycle': if (!p.cooking) thrCycle(p); break;
     case 'thr': if (THROW[v] && !p.cooking) { p.thrSel = v; i.slot = 3; } break;
     case 'scope': if (p.scopes[v]) p.scope = v; break;
@@ -1828,7 +1950,7 @@ function applyAct(p, a, v) {
 function doAct(a, v) {
   if (!me || !me.alive) return;
   if (net) { // check locally so the player gets the same hints as in solo
-    if (a === 'grab') { const it = interactTarget(me), why = it && worseReason(me, it); if (why) return flashMsg(why); }
+    if (a === 'grab' && !me.tank && !nearTank(me)) { const it = interactTarget(me), why = it && worseReason(me, it); if (why) return flashMsg(why); }
     if (a === 'heal' && HEALS[v].cap && me.hp >= HEALS[v].cap && me.inv[v] > 0) return flashMsg(v === 'bandage' ? 'Bandages only heal to 75' : 'Health is full');
     if (a === 'scope' && me.scopes[v]) me.scope = v;
     return netSend({ t: 'act', a, v });
@@ -1942,27 +2064,39 @@ function update(dt) {
   for (const p of players) { p.px = p.x; p.py = p.y; }
   for (const p of players) if (p.alive) updatePlayer(p, dt);
   for (let i = 0; i < players.length; i++) {
-    const a = players[i]; if (!a.alive) continue;
+    const a = players[i]; if (!a.alive || a.tank) continue;
     for (let j = i + 1; j < players.length; j++) {
-      const b = players[j]; if (!b.alive) continue;
+      const b = players[j]; if (!b.alive || b.tank) continue;
       const dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r, dd = dx * dx + dy * dy;
       if (dd < rr * rr && dd > 1e-4) { const d = Math.sqrt(dd), push = (rr - d) / 2; a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; }
     }
   }
-  for (const p of players) if (p.alive) { pushOut(p, p.r); autoPickup(p); }
+  for (const p of players) if (p.alive && !p.tank) { pushOut(p, p.r); autoPickup(p); }
+  tankCollisions();
   // bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i], step = Math.min(b.speed * dt, b.range - b.trav), dx = b.dx * step, dy = b.dy * step;
-    let bt = 2, hitP = null, hitO = null;
+    let bt = 2, hitP = null, hitO = null, hitT = null;
     const rh = raycast(b.x, b.y, dx, dy); if (rh) { bt = rh.t; hitO = rh.o; }
     for (const p of players) {
-      if (!p.alive || p === b.owner || Math.abs(p.x - b.x) > step + 40 || Math.abs(p.y - b.y) > step + 40) continue;
+      if (!p.alive || p.tank || p === b.owner || Math.abs(p.x - b.x) > step + 40 || Math.abs(p.y - b.y) > step + 40) continue;
       const t = segCircle(b.x, b.y, dx, dy, p.x, p.y, p.r);
       if (t >= 0 && t < bt) { bt = t; hitP = p; hitO = null; }
     }
+    for (const tk of tanks) {
+      if (tk.driver && tk.driver === b.owner) continue;
+      if (Math.abs(tk.x - b.x) > step + 60 || Math.abs(tk.y - b.y) > step + 60) continue;
+      const t = segCircle(b.x, b.y, dx, dy, tk.x, tk.y, TANK.r - 4);
+      if (t >= 0 && t < bt) { bt = t; hitT = tk; hitP = null; hitO = null; }
+    }
     if (bt <= 1) {
       const hx = b.x + dx * bt, hy = b.y + dy * bt; b.trav += step * bt;
-      if (hitP) { damage(hitP, b.dmg * (b.falloff ? 1 - .6 * b.trav / b.range : 1), b.owner, b.wid); if (hitP === me || b.owner === me) sfx('punch', hx, hy); }
+      if (b.shell) { bullets.splice(i, 1); explode(hx, hy, b.owner, 'tank', TANK.blastR, TANK.blastDmg); continue; }
+      if (hitT) { // armour: bullets do half damage and ping off
+        damageTank(hitT, b.dmg * .5, b.owner);
+        for (let k = 0; k < 4; k++) particles.push({ type: 'dot', x: hx, y: hy, vx: -b.dx * rand(60, 200) + rand(-120, 120), vy: -b.dy * rand(60, 200) + rand(-120, 120), life: .25, max: .25, size: rand(1.5, 3), color: '#ffe08a' });
+        if (b.owner === me || hitT.driver === me) sfx('punch', hx, hy);
+      } else if (hitP) { damage(hitP, b.dmg * (b.falloff ? 1 - .6 * b.trav / b.range : 1), b.owner, b.wid); if (hitP === me || b.owner === me) sfx('punch', hx, hy); }
       else {
         const col = hitO.kind === 'tree' ? C.trunk : hitO.kind === 'crate' ? C.crate : hitO.kind === 'barrel' ? C.barrel : hitO.kind === 'wall' ? C.wallHi : '#cfcfcf';
         for (let k = 0; k < 4; k++) particles.push({ type: 'dot', x: hx, y: hy, vx: -b.dx * rand(40, 160) + rand(-90, 90), vy: -b.dy * rand(40, 160) + rand(-90, 90), life: .3, max: .3, size: rand(1.5, 3.5), color: col });
@@ -1971,7 +2105,7 @@ function update(dt) {
       bullets.splice(i, 1); continue;
     }
     b.x += dx; b.y += dy; b.trav += step;
-    if (b.trav >= b.range - .01) bullets.splice(i, 1);
+    if (b.trav >= b.range - .01) { bullets.splice(i, 1); if (b.shell) explode(b.x, b.y, b.owner, 'tank', TANK.blastR, TANK.blastDmg); }
   }
   // grenades: arc through the air, bounce on landing, then roll to a stop
   const tall = o => o.kind === 'wall' || o.kind === 'tree';
@@ -2005,6 +2139,10 @@ function update(dt) {
   stepFx(dt);
 }
 function stepFx(dt) {
+  for (const t of tanks) {
+    t.hit = Math.max(0, (t.hit || 0) - dt); t.kick = Math.max(0, (t.kick || 0) - dt * 4); t.odo = (t.odo || 0) + (t.v || 0) * dt;
+    if (t.hp < TANK.hp * .4 && Math.random() < dt * 8) particles.push({ type: 'smoke', x: t.x + rand(-20, 20), y: t.y + rand(-20, 20), vx: rand(-15, 15), vy: rand(-40, -15), life: rand(.8, 1.4), max: 1.4, size: rand(10, 18) });
+  }
   for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.life -= dt; if (p.life <= 0) { particles.splice(i, 1); continue; } if (p.vx != null) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(.05, dt); p.vy *= Math.pow(.05, dt); } }
   for (const o of obstacles) if (o.hit > 0) o.hit -= dt;
   if (decals.length > 300) decals.splice(0, decals.length - 300);
@@ -2498,7 +2636,39 @@ function drawThrowable(type, x, y, scale, rot, pinned, blink) {
   }
   ctx.restore();
 }
+function drawTank(t) {
+  const flash = t.hit > 0, kick = (t.kick || 0) * 6;
+  ctx.save(); ctx.translate(t.x, t.y);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(6, 8, 58, 42, t.a, 0, TAU); ctx.fill();
+  ctx.rotate(t.a);
+  // tracks
+  const tread = (y) => { ctx.fillStyle = '#2b2b27'; ctx.fillRect(-54, y, 108, 16); ctx.strokeStyle = '#151513'; ctx.lineWidth = 2; ctx.strokeRect(-54, y, 108, 16);
+    ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 2; const off = ((t.odo || 0) % 12); ctx.beginPath(); for (let x = -50 + off; x < 54; x += 12) { ctx.moveTo(x, y + 2); ctx.lineTo(x, y + 14); } ctx.stroke(); };
+  tread(-36); tread(20);
+  // hull
+  ctx.fillStyle = flash ? '#9aa07a' : '#56653a'; ctx.strokeStyle = '#1f2614'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-48, -26); ctx.lineTo(44, -26); ctx.lineTo(52, -16); ctx.lineTo(52, 16); ctx.lineTo(44, 26); ctx.lineTo(-48, 26); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(-44, -22, 84, 10);
+  ctx.fillStyle = '#3e4a28'; ctx.fillRect(-46, -8, 10, 16); // engine deck
+  ctx.restore();
+  // turret and barrel
+  ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.ta);
+  ctx.fillStyle = '#2f3820'; ctx.strokeStyle = '#1a2010'; ctx.lineWidth = 2.5;
+  ctx.fillRect(14 - kick, -5.5, TANK.barrel - 12, 11); ctx.strokeRect(14 - kick, -5.5, TANK.barrel - 12, 11);
+  ctx.fillRect(TANK.barrel - 6 - kick, -7.5, 8, 15); ctx.strokeRect(TANK.barrel - 6 - kick, -7.5, 8, 15);
+  ctx.fillStyle = flash ? '#a9ae88' : '#647444'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, TAU); ctx.fill(); ctx.stroke();
+  // hatch: shows who is driving
+  if (t.driver) { ctx.fillStyle = t.driver.helmet ? GEAR.helmet.color[t.driver.helmet] : t.driver.color; ctx.strokeStyle = C.skinOutline; ctx.lineWidth = 2; circ(-6, 0, 9); ctx.fill(); ctx.stroke(); }
+  else { ctx.fillStyle = '#3e4a28'; ctx.strokeStyle = '#1a2010'; ctx.lineWidth = 2; circ(-6, 0, 8); ctx.fill(); ctx.stroke(); }
+  ctx.restore();
+  if (t.hp < TANK.hp || t.driver === me) { // armour bar
+    const w = 70, f = Math.max(0, t.hp / TANK.hp);
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(t.x - w / 2, t.y - 66, w, 6);
+    ctx.fillStyle = f < .3 ? '#ff3b30' : f < .6 ? '#ffb400' : '#d6d6d6'; ctx.fillRect(t.x - w / 2, t.y - 66, w * f, 6);
+  }
+}
 function drawPlayer(p) {
+  if (p.tank) return; // inside: the hatch on the turret shows them
   ctx.save(); ctx.translate(p.x, p.y);
   ctx.rotate(p.angle);
   const g = curGun(p), def = g && GUNS[g.id], kick = p.kick * 5, out = C.skinOutline;
@@ -2574,9 +2744,17 @@ function render() {
   };
   for (const g of grenades) if (g.z <= 2) drawGrenade(g);
   for (const st of strobes) drawThrowable('strobe', st.x, st.y, 1.1, 0, false, Math.floor(st.t * 6) % 2 === 0);
+  for (const t of tanks) if (t.x > x0 - 80 && t.x < x1 + 80 && t.y > y0 - 80 && t.y < y1 + 80) drawTank(t);
   for (const p of players) if (p.alive && p.x > x0 - 40 && p.x < x1 + 40 && p.y > y0 - 40 && p.y < y1 + 40) drawPlayer(p);
   ctx.lineCap = 'round';
   for (const b of bullets) {
+    if (b.wid === 'tank') { // tank shell: a dark slug with a hot trail
+      const tl = Math.min(b.trav, 70), gr = ctx.createLinearGradient(b.x - b.dx * tl, b.y - b.dy * tl, b.x, b.y);
+      gr.addColorStop(0, 'rgba(255,150,40,0)'); gr.addColorStop(1, 'rgba(255,190,90,.9)');
+      ctx.strokeStyle = gr; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(b.x - b.dx * tl, b.y - b.dy * tl); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.fillStyle = '#2a2a24'; circ(b.x, b.y, 5.5); ctx.fill();
+      continue;
+    }
     const tail = Math.min(b.trav, b.shrap ? 26 : b.dmg > 40 ? 200 : 110);
     const tr = TRACER[GUNS[b.wid] ? GUNS[b.wid].ammo : 'a9'], col = b.shrap ? '#333333' : b.owner === me ? tr[1] : tr[0];
     const grd = ctx.createLinearGradient(b.x - b.dx * tail, b.y - b.dy * tail, b.x, b.y);
@@ -2660,6 +2838,7 @@ function drawMini() {
   for (const d of decals) if (d.body) { m.fillStyle = '#7a1b12'; m.fillRect(d.x * k - 2, d.y * k - 2, 4, 4); }
   const airMark = (x, y, a) => { m.globalAlpha = a; m.fillStyle = '#6d7f8c'; m.strokeStyle = '#fff'; m.lineWidth = 1.5; m.fillRect(x * k - 4, y * k - 4, 8, 8); m.strokeRect(x * k - 4, y * k - 4, 8, 8); m.fillStyle = '#e0b62a'; m.fillRect(x * k - 1, y * k - 4, 2, 8); m.globalAlpha = 1; };
   for (const q of drops) airMark(q.x, q.y, .55 + .45 * Math.sin(time * 6));
+  for (const t of tanks) { m.save(); m.translate(t.x * k, t.y * k); m.rotate(t.a); m.fillStyle = '#4b5a2e'; m.strokeStyle = '#fff'; m.lineWidth = 1.5; m.fillRect(-5, -4, 10, 8); m.strokeRect(-5, -4, 10, 8); m.restore(); }
   for (const o of obstacles) if (o.ctype === 'airdrop') airMark(o.x + o.w / 2, o.y + o.h / 2, 1);
   if (f) {
     m.fillStyle = '#ffb400'; m.strokeStyle = '#000'; m.lineWidth = 2;
@@ -2712,16 +2891,23 @@ function updateHUD() {
   setText($('magNum'), g ? String(g.mag) : me.cur === 3 ? String(me.thr[me.thrSel]) : '');
   setText($('magRes'), g ? String(me.ammo[GUNS[g.id].ammo]) : '');
   setText($('fireMode'), g ? (GUNS[g.id].burst ? 'Burst' : GUNS[g.id].auto ? 'Auto' : 'Semi') : '');
-  const near = me.alive ? interactTarget(me) : null;
-  show('prompt', !!near);
-  if (near) {
+  if (me.tank) { setText($('magNum'), me.tank.cd > 0 ? '0' : '1'); setText($('magRes'), ''); setText($('fireMode'), 'Cannon'); }
+  const near = me.alive ? interactTarget(me) : null, tk = me.alive ? me.tank || nearTank(me) : null;
+  const tankFirst = tk && (me.tank || !near || d2(me.x, me.y, tk.x, tk.y) - (TANK.r + 10) ** 2 < d2(me.x, me.y, near.x, near.y));
+  show('prompt', !!(near || tk));
+  if (tankFirst) {
+    const key = touchMode ? 'Tap Grab: ' : '<kbd>F</kbd>';
+    setHTML($('prompt'), me.tank ? key + 'Exit tank <span style="opacity:.7">· Armor ' + Math.ceil(Math.max(0, me.tank.hp)) + '</span>' : key + 'Drive tank');
+  } else if (near) {
     const label = near.kind === 'gun' ? '<span style="color:' + gunCol(near.type) + '">' + GUNS[near.type].name + '</span>' : GEAR[near.kind].name + ' L' + near.type;
     const why = worseReason(me, near);
     const tag = isRare(near.kind, near.type) ? ' <span class="rare">Rare</span>' : '';
     setHTML($('prompt'), why ? '<span style="opacity:.6">' + label + ': ' + why + '</span>' + tag : (touchMode ? 'Tap Grab: ' : '<kbd>F</kbd>') + label + tag);
   }
-  const busy = me.alive && (me.reloadT > 0 || me.healT > 0 || me.cooking);
-  show('action', busy);
+  const shellCd = me.alive && me.tank && me.tank.cd > 0;
+  const busy = me.alive && (me.reloadT > 0 || me.healT > 0 || me.cooking) && !shellCd;
+  show('action', busy || shellCd);
+  if (shellCd) { setText($('actionLabel'), 'Loading shell'); $('actionFill').style.width = (1 - me.tank.cd / TANK.reload) * 100 + '%'; $('actionFill').style.background = ''; }
   if (busy) {
     const rel = me.reloadT > 0, ck = me.cooking;
     setText($('actionLabel'), ck && !THROW[me.thrSel].cook ? 'Release to throw' : ck ? 'Fuse ' + Math.max(0, FRAG.fuse - me.cookT).toFixed(1) + 's: release to throw' : rel ? 'Reloading' : 'Using ' + HEALS[me.healType].name.toLowerCase());
@@ -2745,7 +2931,7 @@ function netConnect() {
   try { localStorage.setItem('ringfall-name', myName); } catch (e) {}
   initAudio();
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
-  net = { ws, ready: false, myId: -1, spectator: false, byId: new Map(), obs: new Map(), roster: new Map(), lastIn: 0, sx: 0, sy: 0 };
+  net = { ws, ready: false, myId: -1, spectator: false, byId: new Map(), obs: new Map(), roster: new Map(), tanks: new Map(), lastIn: 0, sx: 0, sy: 0 };
   setNetStatus('Connecting…'); $('onlineBtn').disabled = true;
   ws.onopen = () => netSend({ t: 'join', name: myName });
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === 'welcome') netWelcome(m); else if (m.t === 's' && net && net.ready) netSnap(m); };
@@ -2756,7 +2942,7 @@ function netWelcome(m) {
   resetSim();
   grid = new Grid(MAP, 250); obstacles = []; net.obs.clear();
   for (const d of w.obs) { const o = Object.assign({ hit: 0 }, d); if (o.hp == null) o.hp = Infinity; if (o.maxHp == null) o.maxHp = Infinity; obstacles.push(o); grid.insert(o); net.obs.set(o.id, o); }
-  buildings = w.buildings.map(b => Object.assign({ roofA: 1 }, b)); river = w.river; bridges = w.bridges; ponds = w.ponds; loot = [];
+  buildings = w.buildings.map(b => Object.assign({ roofA: 1 }, b)); river = w.river; bridges = w.bridges; ponds = w.ponds; loot = []; tanks = []; net.tanks.clear();
   tufts = []; for (let i = 0; i < 3200; i++) tufts.push([rand(0, MAP), rand(0, MAP), rand(2, 5), Math.random()]);
   zone = { cx: MAP / 2, cy: MAP / 2, r: MAP * .72, tx: MAP / 2, ty: MAP / 2, tr: MAP * .72, state: 'wait', timer: 0, phase: 0 };
   buildMinimap();
@@ -2809,6 +2995,16 @@ function netSnap(m) {
   strobes = c.S.map(([x, y, t]) => ({ x, y, t })); strikes = c.K.map(([x, y, t]) => ({ x, y, t }));
   planes = c.L.map(([x, y, a, t]) => ({ x, y, a, t }));
   drops = (c.D || []).map(([x, y, t]) => ({ x, y, t }));
+  for (const p of players) p.tank = null;
+  const seen = new Set();
+  tanks = (c.T || []).map(([id, x, y, a, ta, hp, did, cd, v]) => {
+    let t = net.tanks.get(id); if (!t) { t = { id, x, y, a, ta, hit: 0 }; net.tanks.set(id, t); }
+    if (t.hp != null && hp < t.hp) t.hit = .12;
+    Object.assign(t, { tx: x, ty: y, tA: a, tTa: ta, hp, cd, v, driver: did >= 0 ? net.byId.get(did) || null : null });
+    if (t.driver) t.driver.tank = t;
+    seen.add(id); return t;
+  });
+  for (const id of [...net.tanks.keys()]) if (!seen.has(id)) net.tanks.delete(id);
   for (const ev of c.E) netEvent(ev);
 }
 function netEvent(ev) {
@@ -2826,6 +3022,7 @@ function netEvent(ev) {
       break;
     }
     case 'boom': explodeFx(ev[1], ev[2], ev[3]); break;
+    case 'tfire': { const t = net.tanks.get(ev[1]); if (t) tankFireFx(t); break; }
     case 'air': airdropNote(ev[1], ev[2]); break;
     case 'land': {
       const o = makeObstacle('crate', ev[2], ev[3], { ctype: 'airdrop', size: DROP_SIZE }); o.id = ev[1]; net.obs.set(o.id, o);
@@ -2852,6 +3049,8 @@ function netUpdate(dt) {
     controlMe();
     const i = me.input;
     if (performance.now() - net.lastIn > 33) netPushInput();
+    if (me.tank) { const k = Math.min(1, dt * 14); me.x += (me.tx - me.x) * k; me.y += (me.ty - me.y) * k; }
+    else {
     // predict our own movement so it feels instant, then ease toward the server's position
     let mx = i.mx, my = i.my; const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
     const g = curGun(me); let sp = 250 * (g ? GUNS[g.id].move : 1.05);
@@ -2859,8 +3058,10 @@ function netUpdate(dt) {
     me.x += mx * sp * dt; me.y += my * sp * dt; me.moving = m > .1; pushOut(me, me.r);
     const ex = me.tx - me.x, ey = me.ty - me.y;
     if (ex * ex + ey * ey > 160 * 160) { me.x = me.tx; me.y = me.ty; } else { const k = Math.min(1, dt * 5); me.x += ex * k; me.y += ey * k; }
+    }
     me.angle = i.angle;
   }
+  for (const t of tanks) { const k = Math.min(1, dt * 14); t.x += (t.tx - t.x) * k; t.y += (t.ty - t.y) * k; t.a += angDiff(t.a, t.tA) * k; t.ta += angDiff(t.ta, t.tTa) * k; t.cd = Math.max(0, t.cd - dt); if (t.driver) { t.driver.x = t.x; t.driver.y = t.y; } }
   for (const p of players) {
     if (p !== me || !p.alive) { const k = Math.min(1, dt * 14); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; if (p !== me) p.angle += angDiff(p.angle, p.ta) * k; }
     p.kick = Math.max(0, p.kick - dt * 8); p.punchT = Math.max(0, p.punchT - dt); p.hurt = Math.max(0, p.hurt - dt); p.throwT = Math.max(0, (p.throwT || 0) - dt);

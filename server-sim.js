@@ -122,6 +122,7 @@ function broadcast() {
     C: clouds.map(k => [r(k.x), r(k.y), f2(k.t), k.life, k.puffs.map(p => [f2(p.ox), f2(p.oy), f2(p.r), f2(p.ph)])]),
     S: strobes.map(k => [r(k.x), r(k.y), f2(k.t)]), K: strikes.map(k => [r(k.x), r(k.y), f2(k.t)]), L: planes.map(k => [r(k.x), r(k.y), f2(k.a), f2(k.t)]),
     D: drops.map(q => [r(q.x), r(q.y), f2(q.t)]),
+    T: tanks.map(t => [t.id, r(t.x), r(t.y), f2(t.a), f2(t.ta), Math.ceil(t.hp), t.driver ? t.driver.id : -1, f2(t.cd), r(t.v)]),
     E: events,
   };
   if (rosterDirty) { c.R = roster(); rosterDirty = false; }
