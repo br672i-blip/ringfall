@@ -2,7 +2,7 @@
 
 A top-down 2D battle royale in the style of surviv.io. Drop in with 24 bots, loot guns, gear and heals from houses, bunkers, banks and airdrops, and be the last one standing as the red zone closes in.
 
-**Play:** https://br672i-blip.github.io/ringfall/
+**Play:** https://br672i-blip.github.io/ringfall/ (the game itself is at [/play/](https://br672i-blip.github.io/ringfall/play/))
 
 ## Controls
 
@@ -33,3 +33,4 @@ Then open http://localhost:8080 and press **Play Online**. Friends on the same n
 - `index.html`: the whole game (rendering, simulation, bots, single-player and online client).
 - `server.js`: HTTP + WebSocket server. It loads the game script from `index.html` into a sandbox so matches run with the same rules.
 - `server-sim.js`: turns the single-player simulation into a shared match (joins, inputs, snapshots).
+- `site/`: the landing page for GitHub Pages. The deploy workflow puts it at the site root and the game at `/play/`.

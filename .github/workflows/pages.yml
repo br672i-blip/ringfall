@@ -1,6 +1,6 @@
-# Publishes the game to GitHub Pages on every push to main.
-# index.html is a page body without <!doctype>/<head> (server.js and the artifact host add those),
-# so the deploy step wraps it into a full document.
+# Publishes the site to GitHub Pages on every push to main: the landing page from site/ at the root,
+# and the game at /play/. index.html is a page body without <!doctype>/<head> (server.js and the
+# artifact host add those), so the build step wraps it into a full document.
 name: Deploy to GitHub Pages
 on:
   push:
@@ -21,14 +21,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build page
+      - name: Build site
         run: |
-          mkdir -p _site
+          # landing page at the root, the game itself at /play/
+          mkdir -p _site/play
+          cp -r site/. _site/
           {
             printf '%s' '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
             cat index.html
             printf '%s\n' '</html>'
-          } > _site/index.html
+          } > _site/play/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

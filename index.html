@@ -1489,6 +1489,7 @@ function updatePlayer(p, dt) {
   }
   if (p.reloadT > 0) { p.reloadT -= dt; if (p.reloadT <= 0) { p.reloadT = 0; finishReload(p); } }
   if (inp.reload) { startReload(p); inp.reload = false; }
+  { const g = curGun(p); if (g && g.mag <= 0 && p.reloadT <= 0 && p.healT <= 0 && !p.cooking) startReload(p); } // an empty gun reloads itself once there is ammo for it
   if (inp.heal) { startHeal(p, inp.heal); inp.heal = null; }
   if (p.healT > 0) { p.healT -= dt; if (p.healT <= 0) { p.healT = 0; finishHeal(p); } }
   if (p.boost > 0) { const tier = p.boost > 87.5 ? 3 : p.boost > 50 ? 2 : p.boost > 25 ? 1 : 0; p.hp = Math.min(100, p.hp + [1, 1.5, 2, 2.5][tier] * dt); p.boost = Math.max(0, p.boost - 1.1 * dt); }
