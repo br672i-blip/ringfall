@@ -21,6 +21,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history, so the version can count commits
       - name: Build site
         run: |
           # landing page at the root, the game itself at /play/
@@ -31,6 +33,8 @@ jobs:
             cat index.html
             printf '%s\n' '</html>'
           } > _site/play/index.html
+          # version shown on the landing page: 1.0.<number of commits>, e.g. "ver 1.0.6"
+          sed -i "s/__VERSION__/1.0.$(git rev-list --count HEAD)/" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
