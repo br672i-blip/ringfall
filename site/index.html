@@ -13,298 +13,257 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Black+Ops+One&display=swap">
 <style>
+/* Layout and colours follow survev.io's start screen: the map as a backdrop, a dimming overlay,
+   translucent black menu blocks, a green play button, teal secondary buttons and a grey help button. */
 :root{
-  --bg:#1c2416;
-  --bg-2:#242e1c;
-  --card:#2c3822;
-  --line:rgba(255,255,255,.1);
-  --ink:#f4f1e6;
-  --muted:rgba(244,241,230,.66);
-  --accent:#ffb400;
-  --accent-ink:#2a1d00;
-  --grass:#80af49;
-  --zone:#ff3b30;
-  --f-display:"Black Ops One","Impact",system-ui,sans-serif;
-  --f-body:"Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --side-pad:12px;
+  --block:rgba(0,0,0,.5);
+  --green:#83af50; --green-edge:#5b7a38;
+  --teal:#50afab; --teal-edge:#387c79;
+  --grey:#7a7a7a; --grey-edge:#3e3e3e;
+  --gold:gold;
+  --f:"Roboto Condensed",Arial,sans-serif;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.5;-webkit-font-smoothing:antialiased}
-a{color:var(--accent)}
-img{display:block;max-width:100%}
-.wrap{width:min(1120px,100% - 32px);margin-inline:auto}
+html,body{margin:0;min-height:100%;background:#80af49;color:#fff;font-family:var(--f);font-size:16px}
+a{color:inherit}
 
-/* top bar */
-.nav{position:absolute;top:0;left:0;right:0;z-index:3;padding:18px 0}
-.nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.brand{font-family:var(--f-display);font-size:22px;letter-spacing:.02em;color:var(--ink);text-decoration:none}
-.brand span{color:var(--accent)}
-.nav-links{display:flex;gap:20px;font-weight:700;font-size:15px}
-.nav-links a{color:var(--ink);text-decoration:none;opacity:.85}
-.nav-links a:hover{opacity:1;color:var(--accent)}
+#background{position:fixed;inset:0;background:#80af49 url(img/splash.jpg) center/cover no-repeat;z-index:0}
+#start-overlay{position:fixed;inset:0;background:rgba(0,0,0,.2)}
 
-/* hero: a live-looking map with the red zone closing around it */
-.hero{position:relative;min-height:min(92vh,820px);display:grid;place-items:center;overflow:hidden;isolation:isolate;padding:110px 0 80px;text-align:center}
-.hero-bg{position:absolute;inset:-4%;z-index:-2;background:url(img/shot-town.jpg) center/cover no-repeat;filter:saturate(1.05);transform:scale(1.04);animation:drift 40s ease-in-out infinite alternate}
-.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:
-  radial-gradient(ellipse 60% 55% at 50% 50%,rgba(20,26,15,.55),rgba(20,26,15,.86) 70%),
-  linear-gradient(180deg,rgba(28,36,22,.2),var(--bg) 98%)}
-.ring{position:absolute;z-index:-1;left:50%;top:50%;width:min(130vmin,1100px);aspect-ratio:1;border-radius:50%;translate:-50% -50%;
-  border:2px solid rgba(255,255,255,.55);box-shadow:0 0 0 100vmax rgba(255,40,30,.16);animation:close 9s ease-in-out infinite alternate}
-@keyframes close{from{scale:1}to{scale:.72}}
-@keyframes drift{from{transform:scale(1.04) translate(0,0)}to{transform:scale(1.1) translate(-1.5%,1%)}}
-.kicker{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);background:rgba(0,0,0,.35);padding:6px 12px;border-radius:999px}
-.kicker i{width:8px;height:8px;border-radius:50%;background:var(--zone);box-shadow:0 0 0 0 rgba(255,59,48,.7);animation:ping 1.6s infinite}
-@keyframes ping{70%{box-shadow:0 0 0 9px rgba(255,59,48,0)}100%{box-shadow:0 0 0 0 rgba(255,59,48,0)}}
-h1{font-family:var(--f-display);font-weight:400;font-size:clamp(52px,11vw,124px);line-height:.95;margin:18px 0 0;letter-spacing:.01em;text-shadow:0 4px 0 rgba(0,0,0,.35),0 10px 40px rgba(0,0,0,.5)}
-h1 span{color:var(--accent)}
-.lede{max-width:600px;margin:18px auto 0;font-size:clamp(17px,2.2vw,21px);color:var(--ink);text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.cta{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:32px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 28px;border-radius:6px;font:700 18px var(--f-body);letter-spacing:.06em;text-transform:uppercase;text-decoration:none;transition:transform .12s,box-shadow .12s,background .12s}
-.btn-play{background:var(--accent);color:var(--accent-ink);box-shadow:0 5px 0 #b37e00,0 12px 30px rgba(255,180,0,.25);font-size:22px;min-height:62px;padding:0 44px}
-.btn-play:hover{transform:translateY(-2px);box-shadow:0 7px 0 #b37e00,0 16px 36px rgba(255,180,0,.32)}
-.btn-play:active{transform:translateY(3px);box-shadow:0 2px 0 #b37e00}
-.btn-play svg{width:20px;height:20px}
-.btn-ghost{color:var(--ink);background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25)}
-.btn-ghost:hover{background:rgba(0,0,0,.5);border-color:rgba(255,255,255,.45)}
-.btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
-.meta{margin-top:18px;font-size:14px;color:var(--muted)}
+#start-main{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 16px 110px}
 
-/* stats strip */
-.stats{border-block:1px solid var(--line);background:var(--bg-2)}
-.stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);text-align:center}
-.stat{padding:22px 8px}
-.stat + .stat{border-left:1px solid var(--line)}
-.stat b{display:block;font-family:var(--f-display);font-weight:400;font-size:clamp(28px,4vw,40px);color:var(--accent);line-height:1}
-.stat span{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+/* logo, in place of survev's logo image */
+#start-row-header{margin:75px auto 42px;height:140px;width:min(396px,100%);display:grid;place-items:center;text-align:center}
+.logo{margin:0;font-family:"Black Ops One",Impact,sans-serif;font-weight:400;font-size:66px;line-height:1;letter-spacing:.01em;color:#fff;
+  -webkit-text-stroke:2px #2b2014;paint-order:stroke fill;
+  text-shadow:0 5px 0 #2b2014,0 9px 0 rgba(0,0,0,.25),0 14px 28px rgba(0,0,0,.35)}
+.logo span{color:#ffb400}
+.logo-sub{display:block;margin-top:10px;font:700 15px var(--f);letter-spacing:.22em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 
-section{padding:88px 0}
-h2{font-family:var(--f-display);font-weight:400;font-size:clamp(32px,5vw,48px);line-height:1.05;margin:0 0 12px}
-.sub{color:var(--muted);max-width:620px;margin:0 0 40px}
+#start-row-top{display:flex;justify-content:center;align-items:flex-start}
+.menu-block{background:var(--block);border-radius:5px}
 
-/* features: alternating screenshot rows */
-.feature{display:grid;grid-template-columns:1.25fr 1fr;gap:48px;align-items:center}
-.feature + .feature{margin-top:72px}
-.feature.flip .shot{order:2}
-.shot{border-radius:10px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.45);background:#000}
-.shot img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
-.feature h3{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0 0 10px;line-height:1.1}
-.feature p{margin:0 0 14px;color:var(--muted)}
-.feature ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-.feature li{display:flex;gap:10px;align-items:baseline}
-.feature li::before{content:"";flex:none;width:8px;height:8px;border-radius:2px;background:var(--accent);translate:0 -2px}
+/* left column: featured panel + social buttons (survev keeps an ad slot and share icons here) */
+#left-column{width:300px;margin-right:30px}
+#featured{display:block;height:250px;overflow:hidden;position:relative;text-decoration:none}
+#featured img{width:100%;height:100%;object-fit:cover;display:block;opacity:.9;transition:opacity .25s}
+#featured:hover img{opacity:1}
+#featured .cap{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+#featured .tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#000;background:var(--gold);border-radius:3px;padding:2px 6px}
+#featured b{display:block;font-size:20px;margin-top:6px}
+#featured small{display:block;font-size:14px;color:rgba(255,255,255,.8);margin-top:2px}
+#social-share-block{margin-top:10px;padding:10px 4px 6px;text-align:center}
+.btn-social{display:inline-grid;place-items:center;width:40px;height:42px;margin:0 6px 4px;border-radius:12px;color:#fff;text-decoration:none;box-shadow:inset 0 -3px rgba(0,0,0,.3)}
+.btn-social svg{width:22px;height:22px}
+.btn-github{background:#24292f}
+.btn-home{background:var(--green)}
+.btn-rpg{background:#6b4fbb}
 
-/* cards */
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px}
-.card .ico{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;background:rgba(255,180,0,.12);color:var(--accent);margin-bottom:14px}
-.card .ico svg{width:22px;height:22px}
-.card h3{margin:0 0 6px;font-size:19px}
-.card p{margin:0;color:var(--muted);font-size:16px}
+/* centre: the play menu */
+#start-menu{width:300px;padding:20px}
+.menu-option{display:flex;align-items:center;justify-content:center;width:100%;height:40px;line-height:1;margin-bottom:8px;border:0;border-radius:5px;text-align:center;text-decoration:none;cursor:pointer;font:16px var(--f);color:#fff}
+.menu-option:focus-visible{outline:none;box-shadow:0 0 1px 1px var(--green),0 0 0 3px #fff}
+.player-name-input{display:block;background:#fff;color:#000;font-weight:700;padding:0;cursor:text;text-align:center}
+.player-name-input::placeholder{color:#8a8a8a;font-weight:700}
+.btn-hollow{display:block;appearance:none;background:rgba(0,0,0,.35);border:2px solid #00ff00;line-height:36px;padding:0 30px;text-align-last:center;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px}
+.btn-hollow option{color:#000}
+.btn-green{background:var(--green);border-bottom:2px solid var(--green-edge);box-shadow:inset 0 -2px var(--green-edge);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.btn-play{height:50px;font-size:21px;font-weight:700;letter-spacing:.02em}
+.btn-team-option{background:var(--teal);border-bottom:2px solid var(--teal-edge);box-shadow:inset 0 -2px var(--teal-edge);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.btns-double-row{display:flex;gap:4px}
+.btn-help{background:var(--grey);border-bottom:2px solid var(--grey-edge);box-shadow:inset 0 -2px var(--grey-edge);text-shadow:0 1px 2px rgba(0,0,0,.25);margin-bottom:0}
+.btn-darken{transition:filter .25s ease}
+.btn-darken:hover,.btn-darken:active{filter:brightness(80%)}
+.btn-green[aria-pressed="true"],.btn-team-option[aria-pressed="true"],.btn-help[aria-expanded="true"]{filter:brightness(85%)}
 
-/* controls */
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
-.keys{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:0;align-items:center}
-.keys dt{display:flex;gap:4px;flex-wrap:wrap}
-.keys dd{margin:0;color:var(--muted)}
-kbd{display:inline-block;min-width:30px;padding:3px 8px;border-radius:5px;background:#3a4830;border:1px solid rgba(255,255,255,.14);border-bottom-width:3px;font:700 14px var(--f-body);text-align:center;color:var(--ink)}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:26px}
-.panel h3{margin:0 0 8px;font-size:21px}
-.panel p{margin:0 0 14px;color:var(--muted)}
-pre{margin:0 0 14px;background:#141a10;border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d9e6c3}
-pre .c{color:#7d8f6a}
+.drawer{display:none;padding-top:6px}
+.drawer.open{display:block}
+.drawer h2{font-size:20px;margin:16px 0 8px;text-align:center}
+.drawer p{margin:6px;line-height:1.35}
+.drawer .help-action{font-weight:400}
+.drawer .help-control{font-weight:700}
+.drawer code,.drawer pre{font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.drawer pre{background:rgba(0,0,0,.45);border-radius:5px;padding:8px 10px;margin:8px 0;white-space:pre-wrap}
+.drawer a{color:var(--gold)}
 
-/* final call */
-.final{text-align:center;background:
-  radial-gradient(ellipse 50% 80% at 50% 100%,rgba(255,180,0,.12),transparent 70%),var(--bg-2);border-top:1px solid var(--line)}
-.final h2{margin-bottom:10px}
-.final p{color:var(--muted);margin:0 0 28px}
-footer{padding:28px 0 40px;color:var(--muted);font-size:14px}
-footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+/* right column: news */
+#news-block{width:300px;height:323px;margin-left:30px;padding:20px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
+.news-header{display:block;margin:0;font-size:20px;color:var(--gold)}
+.news-item{padding-top:12px}
+.news-item + .news-item{margin-top:12px;border-top:1px solid rgba(255,255,255,.15)}
+.news-date{font-size:13px;color:rgba(255,255,255,.7)}
+.news-paragraph{display:block;margin:6px 0 0;line-height:1.35}
+.news-paragraph .highlight{font-weight:700;color:var(--gold)}
 
-@media (max-width:860px){
-  .feature,.feature.flip{grid-template-columns:1fr;gap:22px}
-  .feature.flip .shot{order:0}
-  .cards{grid-template-columns:1fr 1fr}
-  .controls{grid-template-columns:1fr}
-  section{padding:64px 0}
+/* corners */
+#start-top-right{position:absolute;top:var(--side-pad);right:var(--side-pad);z-index:2;display:flex;gap:6px}
+.btn-start-option{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:5px;background:var(--block);color:#fff;text-decoration:none;font-size:15px}
+.btn-start-option svg{width:18px;height:18px}
+#start-bottom-middle{position:absolute;left:var(--side-pad);bottom:20px;z-index:2;line-height:1.5}
+#start-bottom-middle a{display:block;color:#fff;text-decoration:none;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+#start-bottom-middle a:hover{text-decoration:underline}
+#start-bottom-middle .footer-after::after{content:"\B7";margin:0 10px;color:var(--green)}
+#start-bottom-right{position:absolute;right:var(--side-pad);bottom:20px;z-index:2;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,.6);text-align:right}
+
+/* narrower screens: stack the columns, menu first */
+@media (max-width:1000px){
+  #start-row-header{margin:84px auto 22px;height:auto}
+  .logo{font-size:clamp(44px,13vw,66px)}
+  #start-row-top{flex-direction:column;align-items:center;gap:14px}
+  #left-column,#news-block{margin:0}
+  #start-menu{order:-1}
+  #news-block{height:auto;max-height:none}
+  #start-main{padding-bottom:40px}
+  #start-bottom-middle,#start-bottom-right{position:static;text-align:center;margin-top:18px}
+  #start-bottom-middle a{display:inline}
 }
-@media (max-width:560px){
-  .nav-links a:not(.gh){display:none}
-  .hero{min-height:auto;padding:120px 0 90px}
-  .ring{width:150vw}
-  .stats .wrap{grid-template-columns:1fr 1fr}
-  .stat:nth-child(3){border-left:0}
-  .stat:nth-child(n+3){border-top:1px solid var(--line)}
-  .cards{grid-template-columns:1fr}
-  .btn-play{width:100%}
-  .cta .btn-ghost{width:100%}
+@media (max-width:360px){
+  #left-column,#start-menu,#news-block{width:100%}
 }
-@media (prefers-reduced-motion:reduce){
-  .hero-bg,.ring,.kicker i{animation:none}
-  html{scroll-behavior:auto}
-}
+@media (prefers-reduced-motion:reduce){.btn-darken{transition:none}}
 </style>
 </head>
 <body>
+<div id="background" aria-hidden="true"><div id="start-overlay"></div></div>
 
-<header class="nav">
-  <div class="wrap">
-    <a class="brand" href="./">RINGFALL<span>.IO</span></a>
-    <nav class="nav-links" aria-label="Page">
-      <a href="/">All games</a>
-      <a href="#features">Features</a>
-      <a href="#controls">Controls</a>
-      <a class="gh" href="https://github.com/br672i-blip/ringfall">GitHub</a>
-    </nav>
-  </div>
-</header>
+<div id="start-top-right">
+  <a class="btn-start-option btn-darken" href="/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+    All games
+  </a>
+</div>
 
-<main>
-  <section class="hero" aria-labelledby="title">
-    <div class="hero-bg" aria-hidden="true"></div>
-    <div class="ring" aria-hidden="true"></div>
-    <div class="wrap">
-      <span class="kicker"><i></i>Free browser battle royale</span>
-      <h1 id="title">RINGFALL<span>.IO</span></h1>
-      <p class="lede">Drop onto the island with 24 rivals. Loot guns, armor and heals, then outlast everyone as the red zone closes in.</p>
-      <div class="cta">
-        <a class="btn btn-play" href="play/">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>
-          Play now
+<main id="start-main">
+  <header id="start-row-header">
+    <h1 class="logo">RINGFALL<span>.IO</span><span class="logo-sub">Battle royale</span></h1>
+  </header>
+
+  <div id="start-row-top">
+    <div id="left-column">
+      <a id="featured" class="menu-block" href="#news-airdrops">
+        <img src="img/shot-airdrop.jpg" width="1920" height="1080" alt="A parachuted airdrop crate coming down beside the police station">
+        <span class="cap"><span class="tag">New</span><b>Airdrops have landed</b><small>Four supply drops a match. Top-tier loot inside.</small></span>
+      </a>
+      <div id="social-share-block" class="menu-block">
+        <a class="btn-social btn-github btn-darken" href="https://github.com/br672i-blip/ringfall" aria-label="Ringfall on GitHub" title="Source on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
         </a>
-        <a class="btn btn-ghost" href="#features">See what's inside</a>
-      </div>
-      <p class="meta">No download, no sign-up. Works with mouse and keyboard or touch.</p>
-    </div>
-  </section>
-
-  <div class="stats" role="list">
-    <div class="wrap">
-      <div class="stat" role="listitem"><b>25</b><span>Players a match</span></div>
-      <div class="stat" role="listitem"><b>26</b><span>Guns</span></div>
-      <div class="stat" role="listitem"><b>4</b><span>Airdrops a match</span></div>
-      <div class="stat" role="listitem"><b>~5</b><span>Minute rounds</span></div>
-    </div>
-  </div>
-
-  <section id="features" aria-labelledby="features-h">
-    <div class="wrap">
-      <h2 id="features-h">One island. One winner.</h2>
-      <p class="sub">Every match builds a new map, so no two drops play out the same way.</p>
-
-      <div class="feature">
-        <div class="shot"><img src="img/shot-fight.jpg" width="1920" height="1080" alt="A player with an AK-47 trading fire with three bots between two houses by the river" loading="lazy"></div>
-        <div>
-          <h3>Fast, punchy gunfights</h3>
-          <p>Pistols, SMGs, shotguns, rifles, LMGs and snipers, each with its own ammo, recoil and fire mode.</p>
-          <ul>
-            <li>Auto, semi-auto and burst weapons, plus dual pistols</li>
-            <li>Frag, smoke and MIRV grenades, and strobes that call in airstrikes</li>
-            <li>Helmets, vests and backpacks in three levels</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="feature flip">
-        <div class="shot"><img src="img/shot-airdrop.jpg" width="1920" height="1080" alt="A parachuted airdrop crate drifting down next to the police station" loading="lazy"></div>
-        <div>
-          <h3>Airdrops worth fighting over</h3>
-          <p>Every time the zone starts to close, a plane drops a crate into the safe circle. Inside: the rarest guns in the game.</p>
-          <ul>
-            <li>M1 Garand, AWM-S, M249 and more</li>
-            <li>Level-3 armor, 8x scopes and big heals</li>
-            <li>Don't stand underneath it when it lands</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="feature">
-        <div class="shot"><img src="img/shot-town.jpg" width="1920" height="1080" alt="A zoomed-out 8x scope view of a town with a bank, houses and ponds, with the red zone sweeping in from the left" loading="lazy"></div>
-        <div>
-          <h3>A whole island to loot</h3>
-          <p>Houses, barns and warehouses sit next to a hidden bunker, a police armory, a bank vault and a walled military camp.</p>
-          <ul>
-            <li>Breakable crates, furniture, windows and trees</li>
-            <li>Roofs fade away when you step inside</li>
-            <li>Scopes from 2x to 8x to spot enemies early</li>
-          </ul>
-        </div>
+        <a class="btn-social btn-home btn-darken" href="/" aria-label="All games" title="All games">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        </a>
+        <a class="btn-social btn-rpg btn-darken" href="/dnd-rpg-adventure/" aria-label="D&amp;D RPG Adventure" title="Also try: D&amp;D RPG Adventure">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>
+        </a>
       </div>
     </div>
-  </section>
 
-  <section aria-labelledby="more-h" style="padding-top:0">
-    <div class="wrap">
-      <h2 id="more-h">Built for quick matches</h2>
-      <p class="sub">Jump in, play a round over lunch, and try again.</p>
-      <div class="cards">
-        <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></div>
-          <h3>A shrinking red zone</h3>
-          <p>Six phases push everyone together. Outside the circle you lose health, and it gets worse each phase.</p>
-        </div>
-        <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="2"/><path d="M9 8V5h6v3M12 11v5M9.5 13.5h5"/></svg></div>
-          <h3>Heal up between fights</h3>
-          <p>Bandages and med kits restore health. Soda and pills fill your boost meter for regeneration and extra speed.</p>
-        </div>
-        <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 20v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-          <h3>Play with friends</h3>
-          <p>Run the included server on your computer and friends on the same network can join the same match.</p>
-        </div>
+    <div id="start-menu" class="menu-block">
+      <form id="play-form" action="play/" autocomplete="off">
+        <label for="player-name-input" class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Your name</label>
+        <input id="player-name-input" class="menu-option player-name-input" type="text" maxlength="16" placeholder="Enter your name here" spellcheck="false">
+        <label for="mode-select" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Game mode</label>
+        <select id="mode-select" class="menu-option btn-hollow">
+          <option value="solo">Solo · 24 bots</option>
+        </select>
+        <button type="submit" class="menu-option btn-green btn-play btn-darken">Play Solo</button>
+      </form>
+      <div class="btns-double-row">
+        <button type="button" class="menu-option btn-team-option btn-darken" data-drawer="online" aria-expanded="false" aria-controls="drawer-online">Play Online</button>
+        <a class="menu-option btn-team-option btn-darken" href="https://github.com/br672i-blip/ringfall">Source Code</a>
       </div>
-    </div>
-  </section>
+      <button type="button" class="menu-option btn-help btn-darken" data-drawer="help" aria-expanded="false" aria-controls="drawer-help">How to Play</button>
 
-  <section id="controls" aria-labelledby="controls-h" style="padding-top:0">
-    <div class="wrap controls">
-      <div>
-        <h2 id="controls-h">Controls</h2>
-        <p class="sub" style="margin-bottom:24px">On a phone or tablet, use the on-screen sticks instead.</p>
-        <dl class="keys">
-          <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Move</dd>
-          <dt><kbd>Mouse</kbd></dt><dd>Aim and shoot</dd>
-          <dt><kbd>F</kbd></dt><dd>Pick up or swap items</dd>
-          <dt><kbd>R</kbd></dt><dd>Reload</dd>
-          <dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>Guns and fists</dd>
-          <dt><kbd>4</kbd><kbd>G</kbd></dt><dd>Throwables (press again to cycle)</dd>
-          <dt><kbd>7</kbd><kbd>8</kbd><kbd>9</kbd><kbd>0</kbd></dt><dd>Bandage, med kit, soda, pills</dd>
-        </dl>
+      <div id="drawer-help" class="drawer">
+        <h2>Controls</h2>
+        <p><span class="help-action">Move</span>: <span class="help-control">W, A, S, D</span></p>
+        <p><span class="help-action">Aim</span>: <span class="help-control">Mouse</span></p>
+        <p><span class="help-action">Punch / Shoot</span>: <span class="help-control">Left click</span></p>
+        <p><span class="help-action">Change weapons</span>: <span class="help-control">1, 2, 3</span></p>
+        <p><span class="help-action">Throwables</span>: <span class="help-control">4 or G</span></p>
+        <p><span class="help-action">Last weapon</span>: <span class="help-control">Q</span></p>
+        <p><span class="help-action">Reload</span>: <span class="help-control">R</span></p>
+        <p><span class="help-action">Pick up</span>: <span class="help-control">F or E</span></p>
+        <p><span class="help-action">Heal</span>: <span class="help-control">7, 8, 9, 0</span></p>
+        <h2>Goal</h2>
+        <p>Loot guns and armor, stay inside the white circle as the red zone closes, and be the last one standing.</p>
       </div>
-      <div class="panel" id="online">
-        <h3>Host an online match</h3>
-        <p>The web version is single-player against bots. To play together, run the server with <a href="https://nodejs.org/">Node.js</a>:</p>
-<pre><span class="c"># get the game and start the server</span>
-git clone https://github.com/br672i-blip/ringfall
+
+      <div id="drawer-online" class="drawer">
+        <h2>Play with friends</h2>
+        <p>Online matches run on a server on your own computer. You need <a href="https://nodejs.org/">Node.js</a>:</p>
+<pre>git clone https://github.com/br672i-blip/ringfall
 cd ringfall
 npm install
 npm start</pre>
-        <p style="margin:0">Open <b>localhost:8080</b> and press <b>Play Online</b>. Friends join at the network address the server prints.</p>
+        <p>Open <b>localhost:8080</b> and press <b>Play Online</b>. Friends on your network join at the address the server prints.</p>
       </div>
     </div>
-  </section>
 
-  <section class="final" aria-labelledby="final-h">
-    <div class="wrap">
-      <h2 id="final-h">The zone is closing.</h2>
-      <p>Drop in now and be the last one standing.</p>
-      <a class="btn btn-play" href="play/">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>
-        Play now
-      </a>
+    <div id="news-block" class="menu-block" aria-labelledby="news-h">
+      <h2 class="news-header" id="news-h">What's New!</h2>
+      <div class="news-item">
+        <small class="news-date">November 14th, 2026</small>
+        <p class="news-paragraph"><strong>Lock and Load</strong></p>
+        <p class="news-paragraph">Empty guns now <span class="highlight">reload themselves</span> when you pick one up, switch to it or find ammo.</p>
+        <p class="news-paragraph">This page also got a new look, and <span class="highlight">all our games</span> now share a home page.</p>
+      </div>
+      <div class="news-item">
+        <small class="news-date">November 11th, 2026</small>
+        <p class="news-paragraph"><strong>Going Public</strong></p>
+        <p class="news-paragraph">Ringfall is now playable on <span class="highlight">GitHub Pages</span>, right in your browser.</p>
+      </div>
+      <div class="news-item">
+        <small class="news-date">October 25th, 2026</small>
+        <p class="news-paragraph"><strong>Open Gates</strong></p>
+        <p class="news-paragraph">The <span class="highlight">military camp</span> can now be entered from both the north and south gates.</p>
+      </div>
+      <div class="news-item" id="news-airdrops">
+        <small class="news-date">October 12th, 2026</small>
+        <p class="news-paragraph"><strong>Special Delivery</strong></p>
+        <p class="news-paragraph">Every time the red zone closes, a plane drops a parachuted <span class="highlight">airdrop</span> into the safe circle: an M1 Garand, AWM-S, M249 or other top-tier gun, plus level-3 gear or an 8x scope.</p>
+        <p class="news-paragraph">Don't stand underneath it when it lands.</p>
+      </div>
+      <div class="news-item">
+        <small class="news-date">October 12th, 2026</small>
+        <p class="news-paragraph"><strong>Patched Up</strong></p>
+        <p class="news-paragraph">Bandages, med kits, sodas and pills have <span class="highlight">all-new art</span>, and you can see who's healing.</p>
+      </div>
+      <div class="news-item">
+        <small class="news-date">Earlier</small>
+        <p class="news-paragraph"><strong>New Neighbors</strong></p>
+        <p class="news-paragraph">A <span class="highlight">police station</span> with an armory, a <span class="highlight">bank</span> vault, greenhouses, gas stations with exploding pumps, and outhouses.</p>
+      </div>
     </div>
-  </section>
+  </div>
+
+  <nav id="start-bottom-middle" aria-label="Links">
+    <a class="footer-after" href="https://github.com/br672i-blip/ringfall/commits/main">Changelog</a>
+    <a class="footer-after" href="https://github.com/br672i-blip/ringfall">Source code</a>
+    <a href="/">All games</a>
+  </nav>
+  <div id="start-bottom-right">Free to play. No sign-up.</div>
 </main>
 
-<footer>
-  <div class="wrap">
-    <span>Ringfall.io: a fan-made game inspired by surviv.io.</span>
-    <a href="https://github.com/br672i-blip/ringfall">Source on GitHub</a>
-  </div>
-</footer>
-
+<script>
+// The game page reads the name from the same browser storage key, so it comes pre-filled there.
+const nameInput = document.getElementById('player-name-input');
+try { nameInput.value = localStorage.getItem('ringfall-name') || ''; } catch (e) {}
+document.getElementById('play-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = nameInput.value.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16);
+  try { if (name) localStorage.setItem('ringfall-name', name); } catch (err) {}
+  location.href = 'play/';
+});
+// "How to Play" and "Play Online" open their panel inside the menu, one at a time
+const toggles = document.querySelectorAll('[data-drawer]');
+toggles.forEach(btn => btn.addEventListener('click', () => {
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  toggles.forEach(b => { b.setAttribute('aria-expanded', 'false'); document.getElementById('drawer-' + b.dataset.drawer).classList.remove('open'); });
+  if (open) { btn.setAttribute('aria-expanded', 'true'); document.getElementById('drawer-' + btn.dataset.drawer).classList.add('open'); }
+}));
+</script>
 </body>
 </html>
