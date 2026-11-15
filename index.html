@@ -327,7 +327,7 @@ const GUNS = {
   awm:    { name: 'AWM-S', auto: false, an: true, short: 'AWM', ammo: 'a308', mag: 5,   dmg: 110, rate: 1.6, spread: .003, speed: 3400, range: 2200, reload: 3.2, pellets: 1, len: 64, w: 9,  tier: 5, move: .86, pref: 720 },
   qbb:    { name: 'QBB-97', auto: true,        short: 'QBB',  ammo: 'a556', mag: 75,  dmg: 12, rate: .08,  spread: .11,  speed: 1900, range: 1000, reload: 4.2, pellets: 1, len: 50, w: 10, tier: 3, move: .87, pref: 360 },
   dp28:   { name: 'DP-28', auto: true,         short: 'DP28', ammo: 'a762', mag: 47,  dmg: 15, rate: .1,   spread: .1,   speed: 1900, range: 1000, reload: 4.4, pellets: 1, len: 54, w: 9,  tier: 3, move: .86, pref: 380 },
-  rpg:    { name: 'RPG-7', an: true, auto: false, short: 'RPG', ammo: 'rkt', mag: 1, dmg: 90, rate: 1, spread: .02, speed: 1000, range: 1100, reload: 3, pellets: 1, len: 72, w: 10, tier: 5, move: .82, pref: 450,
+  rpg:    { name: 'RPG-7', an: true, auto: false, short: 'RPG', ammo: 'rkt', mag: 1, dmg: 90, rate: 1, spread: .02, speed: 1000, range: 1100, reload: 3, pellets: 1, len: 54, w: 10, tier: 5, move: .82, pref: 450,
             rocket: { r: 150, dmg: 90 } }, // fires a rocket that explodes on impact or at the end of its range
   m249:   { name: 'M249', an: true, auto: true,          short: 'M249', ammo: 'a556', mag: 100, dmg: 13, rate: .075, spread: .12,  speed: 1900, range: 1000, reload: 5,   pellets: 1, len: 50, w: 11, tier: 5, move: .85, pref: 380 },
 };
@@ -374,7 +374,7 @@ const GUN_ART = {
   awm:    { len: 72, off: -14, grip: 16, fore: 40, parts: [[0, -4, 18, 8, '#55613a'], [18, -4.5, 26, 9, '#4b5634'], [44, -2, 22, 4, '#1a1a1a'], [66, -3, 6, 6, '#111'], [30, 4.5, 3, 7, '#666'], [16, -3.5, 24, 7, '#0f0f0f'], [16, -2.5, 2, 5, '#5a8fb0'], [38, -2.5, 2, 5, '#5a8fb0']] },
   qbb:    { len: 56, off: -12, grip: 16, fore: 34, parts: [[0, -5, 38, 10, '#2b2b2b'], [10, -2, 20, 4, '#444'], [38, -2, 18, 4, '#161616']], dots: [[13, 9, 8, '#3a3a3a'], [13, 9, 3, '#222']] },
   dp28:   { len: 60, off: -12, grip: 14, fore: 36, parts: [[0, -3.5, 16, 7, WOOD], [16, -3.5, 22, 7, '#2a2a2a'], [38, -2.5, 22, 5, '#3a3a3a']], dots: [[26, 0, 9, '#3d3d3d'], [26, 0, 3, '#222'], [44, 0, 1.2, '#111'], [49, 0, 1.2, '#111'], [54, 0, 1.2, '#111']] },
-  rpg:    { len: 76, off: -22, grip: 24, fore: 42, parts: [[0, -3.5, 60, 7, '#55613a'], [0, -1, 58, 2, '#6b7a48'], [0, -4.5, 5, 9, '#3a3a3a'], [24, 3.5, 4, 8, '#222'], [36, 3.5, 3, 6, '#222'], [30, -7, 7, 3.5, '#222'], [58, -6, 9, 12, '#6e5530'], [67, -4.5, 5, 9, '#7d6238'], [72, -2.5, 4, 5, '#8a6d3e']] },
+  rpg:    { len: 55, off: -14, grip: 16, fore: 30, parts: [[0, -3.5, 42, 7, '#55613a'], [0, -1, 40, 2, '#6b7a48'], [0, -4.5, 4, 9, '#3a3a3a'], [16, 3.5, 4, 8, '#222'], [25, 3.5, 3, 6, '#222'], [20, -7, 6, 3.5, '#222'], [40, -6, 8, 12, '#6e5530'], [48, -4.5, 4, 9, '#7d6238'], [52, -2.5, 3, 5, '#8a6d3e']] },
   m249:   { len: 60, off: -12, grip: 14, fore: 36, parts: [[0, -4, 12, 8, '#222'], [16, 6, 13, 11, '#4a5a36'], [16, 6, 13, 3, '#3c4a2c'], [12, -6, 22, 12, '#2a2a2a'], [34, -2, 26, 4, '#1a1a1a'], [44, -4.5, 12, 1.5, '#444'], [44, 3, 12, 1.5, '#444'], [20, -1.5, 10, 3, '#444']] },
 };
 const GUN_SCALE = 1.4; // guns are drawn larger in hand than their art units
@@ -1400,7 +1400,8 @@ function shoot(p, g, def) {
   for (let i = 0; i < def.pellets; i++) {
     const a = p.angle + (def.pellets > 1 ? (i / (def.pellets - 1) - .5) * spread + rand(-.03, .03) : gauss() * spread * .6);
     const b = { x: p.x + ox + ca * (p.r - 4), y: p.y + oy + sa * (p.r - 4), dx: Math.cos(a), dy: Math.sin(a), speed: def.speed * rand(.95, 1.05), dmg: def.dmg, owner: p, wid: g.id, range: def.range * rand(.92, 1.04), trav: 0, falloff: !!def.falloff, w: def.dmg > 40 ? 4 : def.pellets > 1 ? 2.2 : 3 };
-    if (def.rocket) Object.assign(b, { shell: true, dmg: 0, w: 6, blastR: def.rocket.r, blastDmg: def.rocket.dmg, x: p.x + ca * (p.r + 20), y: p.y + sa * (p.r + 20) });
+    // rockets start inside the shooter like bullets do, so pressing the tube against a wall can't fire through it
+    if (def.rocket) Object.assign(b, { shell: true, dmg: 0, w: 6, blastR: def.rocket.r, blastDmg: def.rocket.dmg });
     bullets.push(b);
   }
   shotFx(p, g.id); emit('shot', p.id, g.id, Math.round(p.angle * 1000) / 1000);
@@ -2315,7 +2316,8 @@ function update(dt) {
     }
     if (bt <= 1) {
       const hx = b.x + dx * bt, hy = b.y + dy * bt; b.trav += step * bt;
-      if (b.shell) { bullets.splice(i, 1); explode(hx, hy, b.owner, b.wid, b.blastR || TANK.blastR, b.blastDmg || TANK.blastDmg); continue; }
+      // burst just in front of whatever was hit: exactly on a wall's face the blast would count as being behind it
+      if (b.shell) { bullets.splice(i, 1); explode(hx - b.dx * 5, hy - b.dy * 5, b.owner, b.wid, b.blastR || TANK.blastR, b.blastDmg || TANK.blastDmg); continue; }
       if (hitT) { // armour: bullets do half damage and ping off
         damageTank(hitT, b.dmg * .5, b.owner);
         for (let k = 0; k < 4; k++) particles.push({ type: 'dot', x: hx, y: hy, vx: -b.dx * rand(60, 200) + rand(-120, 120), vy: -b.dy * rand(60, 200) + rand(-120, 120), life: .25, max: .25, size: rand(1.5, 3), color: '#ffe08a' });
