@@ -26,6 +26,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 #hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.45)}
 .top{top:calc(12px + env(safe-area-inset-top,0px))}
 .bot{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+#teamBox{position:absolute;left:16px;bottom:calc(var(--mini, 200px) + 64px);display:flex;flex-direction:column;gap:4px;width:180px;pointer-events:none}
+#teamBox .mate{background:var(--box);border-radius:5px;padding:4px 8px;font-size:13px;font-weight:700}
+#teamBox .mate i{display:block;height:5px;margin-top:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+#teamBox .mate i b{display:block;height:100%;background:#fff}
+#teamBox .mate.down{opacity:.45}
 #feed{position:absolute;left:16px;display:flex;flex-direction:column;gap:4px;max-width:min(46vw,440px)}
 .kill{display:flex;align-items:center;gap:7px;font-size:14px;padding:4px 10px;white-space:nowrap;width:fit-content;max-width:100%;transition:opacity .6s,transform .25s}
 .kill.enter{opacity:0;transform:translateX(-14px)}
@@ -100,6 +105,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .title span{color:var(--accent)}
 .tag{color:var(--muted);margin:6px 0 20px;font-size:16px}
 #playerName{width:100%;box-sizing:border-box;font:700 18px var(--f-body);text-align:center;padding:11px;border-radius:5px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.95);color:#222;margin-bottom:10px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:8px}
+.seg button{font:700 16px var(--f-body);color:#fff;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.14);border-radius:5px;padding:8px 0;cursor:pointer}
+.seg button[aria-checked="true"]{border-color:var(--accent);background:rgba(255,180,0,.2)}
+.seg button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.blitz{display:flex;align-items:center;gap:8px;justify-content:center;font-size:14px;color:var(--muted);margin:0 0 12px;cursor:pointer}
+.blitz input{width:18px;height:18px;accent-color:var(--accent)}
 .skin-head{display:flex;justify-content:space-between;align-items:baseline;margin:4px 2px 6px}
 #skinName{font-weight:700;color:var(--accent)}
 #skinGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-bottom:14px}
@@ -147,6 +158,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 
 <div id="hud" hidden>
   <div id="feed" class="top"></div>
+  <div id="teamBox" hidden></div>
   <div id="scopes" class="top">
     <button type="button" class="scope" data-z="1">1x</button>
     <button type="button" class="scope" data-z="2">2x</button>
@@ -221,6 +233,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
     <input id="playerName" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Player">
     <div class="skin-head"><span class="lbl">Skin</span><span id="skinName"></span></div>
     <div id="skinGrid" role="radiogroup" aria-label="Skin"></div>
+    <div class="skin-head"><span class="lbl">Mode</span><span id="modeName"></span></div>
+    <div id="modePick" class="seg" role="radiogroup" aria-label="Team size">
+      <button type="button" data-team="solo" role="radio">Solo</button><button type="button" data-team="duo" role="radio">Duo</button><button type="button" data-team="squad" role="radio">Squad</button>
+    </div>
+    <label class="blitz"><input type="checkbox" id="blitzBox"> <span><b>Blitz</b>: the red zone closes twice as fast</span></label>
     <div class="btns" style="flex-direction:column"><button type="button" class="btn" id="onlineBtn" hidden>Play Online</button><button type="button" class="btn" id="playBtn">Play Solo</button></div>
     <p id="netStatus" class="tag" style="margin:12px 0 0" hidden></p>
     <dl class="keys">
@@ -476,6 +493,11 @@ function skinPreviewURL(s, size) {
 // SKINS-END
 const OUTFITS = SKINS.map(s => s.id); // bots cycle through every skin
 const skinOf = p => SKIN_BY_ID[p.skin] || SKINS[0];
+// Game modes: team size (solo, duo, squad) and Blitz, where the red zone closes twice as fast
+const TEAM_SIZES = { solo: 1, duo: 2, squad: 4 }, TEAM_COLORS = ['#ffb400', '#4b9bff', '#c06bff', '#5fd35f'];
+let gameMode = { team: 'solo', blitz: false };
+try { const v = JSON.parse(localStorage.getItem('ringfall-mode') || '{}'); if (TEAM_SIZES[v.team]) gameMode = { team: v.team, blitz: !!v.blitz }; } catch (e) {}
+const zoneScale = () => gameMode.blitz && !net ? .5 : 1;
 // The skin chosen in the menu (or on the website), remembered in this browser
 let mySkin = 'tan';
 try { const v = localStorage.getItem('ringfall-skin'); if (SKIN_BY_ID[v]) mySkin = v; } catch (e) {}
@@ -1226,7 +1248,7 @@ function forcePickup(p, it) {
 function makePlayer(name, x, y, isBot, skinId) {
   const skin = SKIN_BY_ID[skinId] || SKINS[0];
   return {
-    id: uid++, name, x, y, r: 22, angle: rand(0, TAU), hp: 100, boost: 0, alive: true, bot: isBot, skin: skin.id, color: skin.base,
+    id: uid, team: uid++, name, x, y, r: 22, angle: rand(0, TAU), hp: 100, boost: 0, alive: true, bot: isBot, skin: skin.id, color: skin.base,
     helmet: 0, vest: 0, bag: 0, scopes: { 1: true }, scope: 1, thr: { frag: 0, smoke: 0, mirv: 0, strobe: 0 }, thrSel: 'frag',
     slots: [null, null], cur: 2, lastSlot: 2, ammo: { a9: 0, a12: 0, a762: 0, a556: 0, a50: 0, a308: 0, rkt: 0 }, inv: { bandage: 0, medkit: 0, soda: 0, pills: 0 },
     fireCd: 0, reloadT: 0, reloadMax: 1, healT: 0, healMax: 1, healType: null, kick: 0, punchT: 0, punchHand: 0, hurt: 0,
@@ -1429,11 +1451,12 @@ function killUi(p, killer, wid) {
   }
   if (killer && [3, 5, 8, 12].includes(killer.kills)) pushNote((killer === me ? 'You have ' : killer.name + ' has ') + killer.kills + ' kills');
   sfx('down', p.x, p.y);
-  if (p === me) { spectate = killer && killer.alive ? killer : null; showOver(false); }
+  if (p === me) { const mate = players.find(q => q.alive && q.team === me.team); spectate = mate || (killer && killer.alive ? killer : null); showOver(false); }
 }
 
 function damage(p, amt, src, wid) {
   if (!p.alive) return;
+  if (src && src !== p && src.team === p.team && wid !== 'gas') return; // no friendly fire
   if (wid !== 'gas') amt *= (1 - GEAR.helmet.red[p.helmet]) * (1 - GEAR.vest.red[p.vest]);
   p.hp -= amt; p.taken += amt;
   if (src && src !== p) { src.dmg += amt; p.lastHitBy = src; p.lastHitT = time; }
@@ -1454,11 +1477,20 @@ function kill(p, src, wid) {
   for (const t of THROW_ORDER) if (p.thr[t] > 0) addLoot('throw', t, p.thr[t], p.x, p.y, { scatter: true });
   for (const k of ['helmet', 'vest', 'bag']) if (p[k] > 0) addLoot(k, p[k], 1, p.x, p.y, { scatter: true });
   for (const z of [2, 4, 8]) if (p.scopes[z]) addLoot('scope', z, 1, p.x, p.y, { scatter: true });
-  const left = players.filter(q => q.alive);
-  p.place = left.length + 1;
+  const left = players.filter(q => q.alive), teamsLeft = new Set(left.map(q => q.team));
+  const teamOut = !teamsLeft.has(p.team);
+  p.place = teamsLeft.size + (teamOut ? 1 : 0);
+  if (teamOut) for (const q of players) if (q.team === p.team) q.place = p.place; // the whole team shares the placing
   emit('kill', killer ? killer.id : -1, p.id, wid, p.place);
   killUi(p, killer, wid);
-  if (left.length === 1) { left[0].place = 1; emit('win', left[0].id); pushNote((left[0] === me ? 'You' : left[0].name) + ' won the match'); if (left[0] === me) showOver(true); }
+  if (teamsLeft.size === 1) {
+    const winTeam = left[0].team, mine = me && winTeam === me.team;
+    for (const q of players) if (q.team === winTeam) q.place = 1;
+    emit('win', left[0].id);
+    const solo = players.filter(q => q.team === winTeam).length === 1;
+    pushNote(mine ? (solo ? 'You won the match' : 'Your team won the match') : (solo ? left[0].name : left[0].name + "'s team") + ' won the match');
+    if (mine && (me.alive || p !== me)) showOver(true);
+  }
   else if (left.length === 0 && p === me) { me.place = 1; showOver(true); }
 }
 function crateDrop(o, cx, cy) {
@@ -1610,6 +1642,12 @@ function updatePlayer(p, dt) {
 }
 
 // ---------- bot brains ----------
+// The teammate a bot follows: the first living member of its team (the human player leads their team)
+function teamLeader(b) {
+  for (const q of players) if (q.alive && q.team === b.team && q !== b) { if (q === me || !q.bot) return q; }
+  let best = null; for (const q of players) if (q.alive && q.team === b.team && (!best || q.slot < best.slot)) best = q;
+  return best === b ? null : best;
+}
 function hasAmmo(p, s) { const g = p.slots[s]; return !!g && (g.mag > 0 || p.ammo[GUNS[g.id].ammo] > 0); }
 function botChooseWeapon(b, dist) {
   if (b.ai.throwing) return;
@@ -1626,7 +1664,7 @@ function botThink(b) {
   const ai = b.ai;
   let best = null, bs = 1e9;
   for (const o of players) {
-    if (o === b || !o.alive) continue;
+    if (o === b || !o.alive || o.team === b.team) continue;
     const d = Math.hypot(o.x - b.x, o.y - b.y); if (d > ai.vision) continue;
     if (d > 170 && time - o.lastShot > .8 && hiddenInBush(o)) continue;
     if (d > 110 && clouds.length && smokeBlocks(b.x, b.y, o.x, o.y)) continue;
@@ -1689,9 +1727,16 @@ function botUpdate(b, dt) {
       else if (b.boost < 40 && b.hp < 95 && b.inv.pills > 0) healNow = 'pills';
       else if (b.boost < 40 && b.hp < 95 && b.inv.soda > 0) healNow = 'soda';
     }
+    const lead = teamLeader(b), farFromLead = lead && d2(b.x, b.y, lead.x, lead.y) > 240 * 240;
+    const lootOk = ai.lootGoal && (!lead || d2(ai.lootGoal.x, ai.lootGoal.y, lead.x, lead.y) < 320 * 320); // teammates only loot near the leader
     if (healNow || b.healT > 0) { if (urgent) toward(next.x, next.y); }
     else if (urgent) toward(next.x, next.y);
-    else if (ai.lootGoal) toward(ai.lootGoal.x, ai.lootGoal.y);
+    else if (lootOk && !farFromLead) toward(ai.lootGoal.x, ai.lootGoal.y);
+    else if (farFromLead) toward(lead.x, lead.y);
+    else if (lead) { // hang around the leader
+      if (!ai.goal || d2(b.x, b.y, ai.goal.x, ai.goal.y) < 50 * 50 || d2(ai.goal.x, ai.goal.y, lead.x, lead.y) > 260 * 260) { const a = rand(0, TAU); ai.goal = { x: lead.x + Math.cos(a) * rand(80, 200), y: lead.y + Math.sin(a) * rand(80, 200) }; }
+      toward(ai.goal.x, ai.goal.y, .8);
+    }
     else {
       if (!ai.goal || d2(b.x, b.y, ai.goal.x, ai.goal.y) < 80 * 80 || Math.hypot(ai.goal.x - next.x, ai.goal.y - next.y) > next.r) {
         const a = rand(0, TAU), r = Math.sqrt(Math.random()) * next.r * .8;
@@ -1716,7 +1761,7 @@ function botUpdate(b, dt) {
 // ---------- zone ----------
 function beginWait() {
   const ph = PHASES[zone.phase];
-  zone.state = 'wait'; zone.timer = ph.wait;
+  zone.state = 'wait'; zone.timer = ph.wait * zoneScale();
   let tx = zone.cx, ty = zone.cy;
   for (let k = 0; k < 40; k++) {
     const a = rand(0, TAU), d = Math.sqrt(Math.random()) * Math.max(0, zone.r - ph.r) * .85;
@@ -1730,11 +1775,11 @@ function updateZone(dt) {
   if (zone.state === 'done') return;
   zone.timer -= dt;
   if (zone.state === 'wait' && zone.timer <= 0) {
-    zone.state = 'shrink'; zone.timer = PHASES[zone.phase].shrink; zone.fx = zone.cx; zone.fy = zone.cy; zone.fr = zone.r; sfx('siren', cam.x, cam.y);
+    zone.state = 'shrink'; zone.timer = zone.shrinkT = PHASES[zone.phase].shrink * zoneScale(); zone.fx = zone.cx; zone.fy = zone.cy; zone.fr = zone.r; sfx('siren', cam.x, cam.y);
     if (zone.phase <= AIRDROP_PHASES) callAirdrop();
   }
   else if (zone.state === 'shrink') {
-    const k = clamp(1 - zone.timer / PHASES[zone.phase].shrink, 0, 1);
+    const k = clamp(1 - zone.timer / (zone.shrinkT || PHASES[zone.phase].shrink), 0, 1);
     zone.cx = zone.fx + (zone.tx - zone.fx) * k; zone.cy = zone.fy + (zone.ty - zone.fy) * k; zone.r = zone.fr + (zone.tr - zone.fr) * k;
     if (zone.timer <= 0) { zone.phase++; if (zone.phase >= PHASES.length) { zone.state = 'done'; zone.phase = PHASES.length - 1; } else beginWait(); }
   }
@@ -1919,10 +1964,18 @@ function newGame() {
   genWorld(); resetSim();
   zone = { cx: MAP / 2, cy: MAP / 2, r: MAP * .72, phase: 0, state: 'wait', timer: 0, tx: 0, ty: 0, tr: 0 };
   beginWait();
-  const names = NAMES.slice().sort(() => Math.random() - .5), spots = spawnSpots(BOTS + 1);
+  const names = NAMES.slice().sort(() => Math.random() - .5);
   const botSkins = OUTFITS.filter(id => id !== mySkin).sort(() => Math.random() - .5);
-  for (let i = 0; i < BOTS; i++) players.push(makePlayer(names[i], spots[i][0], spots[i][1], true, botSkins[i % botSkins.length]));
-  me = makePlayer(myName, spots[BOTS][0], spots[BOTS][1], false, mySkin); me.hitMarkT = -9;
+  const size = TEAM_SIZES[gameMode.team], teams = size === 1 ? BOTS + 1 : Math.floor(BOTS / size), spots = spawnSpots(teams);
+  // team 0 is yours; teammates drop in a few steps apart
+  for (let t = 0, n = 0; t < teams; t++) {
+    for (let k = 0; k < size; k++) {
+      const a = k / size * TAU + rand(-.3, .3), [x, y] = k === 0 ? spots[t] : freeSpotNear(spots[t][0] + Math.cos(a) * 70, spots[t][1] + Math.sin(a) * 70, 26);
+      const p = t === 0 && k === 0 ? (me = makePlayer(myName, x, y, false, mySkin)) : makePlayer(names[n++ % names.length], x, y, true, botSkins[n % botSkins.length]);
+      p.team = t; p.slot = k; if (p !== me) players.push(p);
+    }
+  }
+  me.hitMarkT = -9;
   players.push(me);
   cam.x = me.x; cam.y = me.y; startTime = 0;
   document.getElementById('feed').innerHTML = '';
@@ -1936,10 +1989,11 @@ function toMenu() {
 function showOver(won) {
   show('over', true);
   const h = document.getElementById('overHead');
+  const teamGame = players.some(q => q !== me && q.team === me.team), matesUp = players.some(q => q !== me && q.alive && q.team === me.team);
   h.textContent = won ? 'Winner!' : 'You died.'; h.classList.toggle('win', won);
-  document.getElementById('overSub').textContent = won ? 'Last one standing out of ' + players.length + '.' :
-    me.killedBy ? me.killedBy.name + ' killed you with ' + weaponLabel(me.killedWith) + '.' : 'You were killed by ' + weaponLabel(me.killedWith) + '.';
-  document.getElementById('oRank').textContent = '#' + me.place;
+  document.getElementById('overSub').textContent = won ? (teamGame ? 'Your team was the last one standing out of ' + new Set(players.map(q => q.team)).size + '.' : 'Last one standing out of ' + players.length + '.') :
+    (me.killedBy ? me.killedBy.name + ' killed you with ' + weaponLabel(me.killedWith) + '.' : 'You were killed by ' + weaponLabel(me.killedWith) + '.') + (matesUp ? ' Your team is still fighting.' : '');
+  document.getElementById('oRank').textContent = matesUp && !won ? '…' : '#' + me.place;
   document.getElementById('oKills').textContent = me.kills;
   document.getElementById('oDmg').textContent = Math.round(me.dmg);
   document.getElementById('oTime').textContent = fmtTime(time - startTime);
@@ -2127,6 +2181,22 @@ for (const h of ['bandage', 'medkit', 'soda', 'pills']) {
   if (src && btn.querySelector) { const img = document.createElement('img'); img.src = src; img.alt = ''; img.className = 'hicon'; btn.querySelector('.nm').prepend(img); }
 }
 for (const b of document.querySelectorAll('.scope')) b.addEventListener('click', () => { const z = +b.dataset.z; if (me && me.scopes[z]) doAct('scope', z); });
+function setMode(team, blitz) {
+  if (TEAM_SIZES[team]) gameMode.team = team; if (blitz != null) gameMode.blitz = !!blitz;
+  try { localStorage.setItem('ringfall-mode', JSON.stringify(gameMode)); } catch (e) {}
+  const pick = document.getElementById('modePick'); if (!pick || !pick.querySelectorAll) return;
+  for (const b of pick.querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.team === gameMode.team));
+  const label = gameMode.team[0].toUpperCase() + gameMode.team.slice(1);
+  document.getElementById('blitzBox').checked = gameMode.blitz;
+  document.getElementById('modeName').textContent = label + (gameMode.blitz ? ' · Blitz' : '');
+  document.getElementById('playBtn').textContent = 'Play ' + label;
+}
+(function buildModePicker() {
+  const pick = document.getElementById('modePick'); if (!pick || !pick.querySelectorAll) return;
+  for (const b of pick.querySelectorAll('button')) b.addEventListener('click', () => setMode(b.dataset.team));
+  document.getElementById('blitzBox').addEventListener('change', e => setMode(null, e.target.checked));
+  setMode(gameMode.team, gameMode.blitz);
+})();
 function startFromMenu() {
   myName = (nameInput.value || '').trim().slice(0, 16) || 'Player';
   try { localStorage.setItem('ringfall-name', myName); } catch (e) {}
@@ -2279,7 +2349,7 @@ function stepFx(dt) {
   if (decals.length > 300) decals.splice(0, decals.length - 300);
   const inside = me && me.alive ? buildingAt(me.x, me.y) : spectate ? buildingAt(spectate.x, spectate.y) : null;
   for (const b of buildings) b.roofA += ((b === inside ? 0 : 1) - b.roofA) * Math.min(1, dt * 8);
-  if (me && !me.alive && (!spectate || !spectate.alive)) spectate = players.filter(p => p.alive).sort((a, b) => b.kills - a.kills)[0] || null;
+  if (me && !me.alive && (!spectate || !spectate.alive)) spectate = players.find(p => p.alive && p.team === me.team) || players.filter(p => p.alive).sort((a, b) => b.kills - a.kills)[0] || null;
 }
 
 // ---------- rendering ----------
@@ -2850,6 +2920,12 @@ function drawPlayer(p) {
     ctx.globalAlpha = 1;
   }
   if (p.healT > 0) { ctx.strokeStyle = HEALS[p.healType].boost ? '#ff9b00' : '#7dff6a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 8, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - p.healT / p.healMax)); ctx.stroke(); }
+  if (p !== me && me && p.team === me.team) { // teammate: coloured ring and name
+    const col = TEAM_COLORS[p.slot % TEAM_COLORS.length];
+    ctx.strokeStyle = col; ctx.lineWidth = 3; circ(p.x, p.y, p.r + 5); ctx.stroke();
+    ctx.font = '700 13px "Roboto Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+    ctx.strokeText(p.name, p.x, p.y + p.r + 20); ctx.fillStyle = col; ctx.fillText(p.name, p.x, p.y + p.r + 20);
+  }
   if (p !== me && time - p.showBarT < 2) {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(p.x - 22, p.y - p.r - 14, 44, 5);
     ctx.fillStyle = p.hp < 35 ? '#ff3b30' : '#fff'; ctx.fillRect(p.x - 22, p.y - p.r - 14, 44 * p.hp / 100, 5);
@@ -2973,6 +3049,7 @@ function drawMini() {
   const zr = Math.max(zone.r * k, .1);
   m.save(); m.beginPath(); m.rect(0, 0, S, S); m.moveTo(zone.cx * k + zr, zone.cy * k); m.arc(zone.cx * k, zone.cy * k, zr, 0, TAU, true); m.fillStyle = 'rgba(255,40,30,.4)'; m.fill(); m.restore();
   if (zone.state !== 'done') { m.strokeStyle = '#fff'; m.lineWidth = 2; m.beginPath(); m.arc(zone.tx * k, zone.ty * k, Math.max(zone.tr * k, .1), 0, TAU); m.stroke(); }
+  for (const q of players) if (q !== me && q.alive && q.team === me.team) { m.fillStyle = TEAM_COLORS[q.slot % TEAM_COLORS.length]; m.strokeStyle = '#000'; m.lineWidth = 1.5; m.beginPath(); m.arc(q.x * k, q.y * k, 4.5, 0, TAU); m.fill(); m.stroke(); }
   const f = me.alive ? me : spectate;
   if (me.alive) { m.strokeStyle = 'rgba(255,255,255,.7)'; m.setLineDash([4, 4]); m.lineWidth = 1.5; m.beginPath(); m.moveTo(me.x * k, me.y * k); m.lineTo(zone.tx * k, zone.ty * k); m.stroke(); m.setLineDash([]); }
   for (const d of decals) if (d.body) { m.fillStyle = '#7a1b12'; m.fillRect(d.x * k - 2, d.y * k - 2, 4, 4); }
@@ -2993,7 +3070,15 @@ function setHTML(el, v) { if (el._h !== v) { el._h = v; el.innerHTML = v; } }
 const toggle = (el, cls, on) => { if (el.classList.contains(cls) !== on) el.classList.toggle(cls, on); };
 let miniTick = 0;
 const boostBars = document.querySelectorAll('#boost i');
+function updateTeamBox() {
+  const box = $('teamBox'), mates = players.filter(q => q !== me && q.team === me.team);
+  show('teamBox', mates.length > 0);
+  if (!mates.length) return;
+  setHTML(box, mates.map(q => '<div class="mate' + (q.alive ? '' : ' down') + '" style="border-left:4px solid ' + TEAM_COLORS[q.slot % TEAM_COLORS.length] + '">' + esc(q.name) +
+    (q.alive ? '<i><b style="width:' + Math.max(0, Math.round(q.hp)) + '%;background:' + (q.hp < 35 ? '#ff3b30' : '#fff') + '"></b></i>' : ' · down') + '</div>').join(''));
+}
 function updateHUD() {
+  updateTeamBox();
   toggle($('hud'), 'dead', !me.alive);
   setText($('alive'), String(players.filter(p => p.alive).length));
   setText($('kills'), String(me.kills));
@@ -3245,5 +3330,8 @@ genWorld(); resetSim();
 zone = { cx: MAP / 2, cy: MAP / 2, r: MAP * .72, phase: 0, state: 'wait', timer: 45, tx: MAP / 2, ty: MAP / 2, tr: 1650 };
 requestAnimationFrame(frame);
 // Links from the website open play/?start=solo to drop straight into a match, skipping this menu
-try { if (!ONLINE && new URLSearchParams(location.search).get('start') === 'solo') startFromMenu(); } catch (e) {}
+try {
+  const q = new URLSearchParams(location.search), st = q.get('start');
+  if (!ONLINE && TEAM_SIZES[st]) { setMode(st, q.get('blitz') === '1'); startFromMenu(); }
+} catch (e) {}
 </script>

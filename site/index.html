@@ -214,7 +214,7 @@ a{color:inherit}
     </div>
 
     <div id="start-menu" class="menu-block">
-      <form id="play-form" action="play/?start=solo" autocomplete="off">
+      <form id="play-form" action="play/" autocomplete="off">
         <div class="name-row">
           <label for="player-name-input" class="sr">Your name</label>
           <input id="player-name-input" class="menu-option player-name-input" type="text" maxlength="16" placeholder="Enter your name here" spellcheck="false">
@@ -224,18 +224,19 @@ a{color:inherit}
         </div>
         <label for="mode-select" class="sr">Game mode</label>
         <select id="mode-select" class="menu-option server-select">
-          <option value="solo">Solo [24 bots]</option>
+          <option value="classic">Classic [24 bots]</option>
+          <option value="blitz">Blitz [2x faster zone]</option>
         </select>
-        <button type="submit" class="menu-option btn-green btn-darken">Play Solo</button>
+        <button type="submit" class="menu-option btn-green btn-darken" data-team="solo">Play Solo</button>
       </form>
       <div class="row">
-        <button type="button" class="menu-option btn-green btn-darken" data-drawer="online" aria-expanded="false" aria-controls="drawer-online">Play Online</button>
-        <a class="menu-option btn-yellow btn-darken" href="/dnd-rpg-adventure/play/">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z" fill="rgba(0,0,0,.25)"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>D&amp;D RPG</a>
+        <button type="button" class="menu-option btn-green btn-darken" data-team="duo">Play Duo</button>
+        <button type="button" class="menu-option btn-yellow btn-darken" data-team="squad">
+          <svg viewBox="0 0 24 24" fill="#fff" stroke="rgba(0,0,0,.35)" stroke-width="1" aria-hidden="true"><circle cx="8" cy="8" r="3.6"/><circle cx="16" cy="8" r="3.6"/><circle cx="8" cy="16" r="3.6"/><circle cx="16" cy="16" r="3.6"/></svg>Play Squad</button>
       </div>
       <div class="row">
-        <a class="menu-option btn-teal btn-darken" href="/">All Games</a>
-        <button type="button" class="menu-option btn-teal btn-darken" data-show-news>What's New</button>
+        <button type="button" class="menu-option btn-teal btn-darken" data-drawer="online" aria-expanded="false" aria-controls="drawer-online">Play Online</button>
+        <a class="menu-option btn-teal btn-darken" href="/dnd-rpg-adventure/play/">D&amp;D RPG</a>
       </div>
       <button type="button" id="btn-help" class="menu-option btn-grey btn-darken" data-drawer="help" aria-expanded="false" aria-controls="drawer-help">How to Play</button>
 
@@ -252,6 +253,7 @@ a{color:inherit}
         <p>Heal: <span class="help-control">7, 8, 9, 0</span></p>
         <h2>Goal</h2>
         <p>Loot guns and armor, stay inside the white circle as the red zone closes, and be the last one standing.</p>
+        <p>In <b>Duo</b> and <b>Squad</b> you get bot teammates who follow you and can't hurt you. The last team standing wins. <b>Blitz</b> closes the zone twice as fast.</p>
       </div>
       <div id="drawer-online" class="drawer">
         <h2>Play with friends</h2>
@@ -266,6 +268,11 @@ a{color:inherit}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>
       </div>
       <div class="news-scroll">
+        <div class="news-item" id="news-modes">
+          <small class="news-date">November 14th, 2026</small>
+          <p class="news-paragraph"><strong>Bring Friends</strong></p>
+          <p class="news-paragraph">New modes: <span class="highlight">Duo</span> and <span class="highlight">Squad</span> team you up with bots who follow you into the fight, and <span class="highlight">Blitz</span> closes the red zone twice as fast for quick matches.</p>
+        </div>
         <div class="news-item" id="news-skins">
           <small class="news-date">November 14th, 2026</small>
           <p class="news-paragraph"><strong>Dress Up</strong></p>
@@ -355,12 +362,15 @@ if (ver.textContent.includes('__')) ver.textContent = 'ver dev';
 // The game page reads the name from the same browser storage key, so it comes pre-filled there.
 const nameInput = document.getElementById('player-name-input');
 try { nameInput.value = localStorage.getItem('ringfall-name') || ''; } catch (e) {}
-document.getElementById('play-form').addEventListener('submit', e => {
-  e.preventDefault();
+const modeSel = document.getElementById('mode-select');
+try { const m = JSON.parse(localStorage.getItem('ringfall-mode') || '{}'); if (m.blitz) modeSel.value = 'blitz'; } catch (e) {}
+function play(team) {
   const name = nameInput.value.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16);
   try { if (name) localStorage.setItem('ringfall-name', name); } catch (err) {}
-  location.href = 'play/?start=solo';
-});
+  location.href = 'play/?start=' + team + (modeSel.value === 'blitz' ? '&blitz=1' : '');
+}
+document.getElementById('play-form').addEventListener('submit', e => { e.preventDefault(); play('solo'); });
+document.querySelectorAll('#start-menu button[data-team="duo"], #start-menu button[data-team="squad"]').forEach(b => b.addEventListener('click', () => play(b.dataset.team)));
 
 // The blue square shows your skin and opens the skin picker. The choice is stored under the same key the
 // game reads, so the next match starts in it.
