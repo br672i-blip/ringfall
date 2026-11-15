@@ -28,6 +28,8 @@ npm start
 
 Then open http://localhost:8080, pick **Solo**, **Duo** or **Squad** (optionally **Blitz**) and press **Play Online**. Friends on the same network can join at the "Same network" address the server prints.
 
+To play with specific friends, one of you presses **Create Team** and shares the 4-letter code or the **Copy link** link; the others press **Join Team** and type the code, or open the link. Everyone with the same code plays on one team, in the mode the code's creator picked, and strangers never fill your team's empty spots (bots do).
+
 Each match uses the mode most connected players picked. In Duo and Squad, human players are put on the same teams first and bots fill the remaining spots; anyone who joins in the first 40 seconds takes a bot's place on a team that already has a human. `/status` shows the current mode.
 
 ## Files

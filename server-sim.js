@@ -49,15 +49,19 @@ function startMatch() {
   gameMode = wantedMode(); // zoneScale() reads this, so Blitz speeds up the zone here on the server
   zone = { cx: MAP / 2, cy: MAP / 2, r: MAP * .72, phase: 0, state: 'wait', timer: 0, tx: 0, ty: 0, tr: 0 };
   beginWait();
-  // Humans fill teams first, so friends who pick Duo or Squad play together; bots fill the rest
-  const humans = [...clients], size = TEAM_SIZES[gameMode.team];
+  // Who plays together: each team code gets its own team(s); everyone else is packed into teams together
+  // (so friends who simply pick the same mode still end up side by side). Bots fill every empty place.
+  const size = TEAM_SIZES[gameMode.team], groups = new Map(), loose = [];
+  for (const c of clients) { if (c.code && size > 1) { if (!groups.has(c.code)) groups.set(c.code, []); groups.get(c.code).push(c); } else loose.push(c); }
+  const rosterTeams = [];
+  for (const g of [...groups.values(), loose]) for (let i = 0; i < g.length; i += size) rosterTeams.push(g.slice(i, i + size));
+  const humans = [...clients];
   let total = size === 1 ? TOTAL_PLAYERS : Math.floor((TOTAL_PLAYERS - 1) / size) * size;
-  total = Math.max(total, Math.ceil(humans.length / size) * size);
-  const teams = total / size, spots = spawnSpots(teams);
+  const teams = Math.max(total / size, rosterTeams.length), spots = spawnSpots(teams);
   botName = Math.floor(Math.random() * NAMES.length);
   let bots = 0;
   for (let t = 0; t < teams; t++) for (let k = 0; k < size; k++) {
-    const i = t * size + k, [x, y] = nearSpot(spots[t], k, size), c = humans[i];
+    const i = t * size + k, [x, y] = nearSpot(spots[t], k, size), c = (rosterTeams[t] || [])[k];
     const p = c ? (c.player = makePlayer(c.name, x, y, false, c.skin || OUTFITS[(i * 5) % OUTFITS.length])) : makePlayer(nextBotName(), x, y, true, OUTFITS[(i + 3) % OUTFITS.length]);
     if (c) p.hitMarkT = -9; else bots++;
     p.team = t; p.slot = k; players.push(p);
@@ -76,23 +80,31 @@ function welcome(c) {
     river, bridges, ponds,
   };
   lootDirty = true;
-  send(c, JSON.stringify({ t: 'welcome', id: c.player ? c.player.id : -1, roster: roster(), world, mode: gameMode }));
+  send(c, JSON.stringify({ t: 'welcome', id: c.player ? c.player.id : -1, roster: roster(), world, mode: gameMode, code: c.code || '' }));
 }
 const roster = () => players.map(p => [p.id, p.name, p.skin, p.bot ? 1 : 0, p.team, p.slot || 0]);
 function send(c, str) { if (c.ws.readyState === 1) c.ws.send(str); }
 
-function join(ws, rawName, rawSkin, rawMode, blitz) {
+function join(ws, rawName, rawSkin, rawMode, blitz, rawCode) {
   const name = rawName.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16) || 'Player';
   const skin = SKIN_BY_ID[rawSkin] ? rawSkin : null; // unknown skins fall back to one picked for them
-  const mode = TEAM_SIZES[rawMode] ? rawMode : 'solo'; // the mode this player would like; it counts as a vote for the next match
-  const c = { ws, name, skin, mode, blitz: !!blitz, player: null, lastIn: Date.now() };
+  let mode = TEAM_SIZES[rawMode] ? rawMode : 'solo'; // the mode this player would like; it counts as a vote for the next match
+  // Team code: everyone using it plays on one team. The first person to use a code sets its mode, and later
+  // members vote the same way, so friends don't have to agree on it separately.
+  const code = /^[A-Z0-9]{4}$/.test(rawCode) ? rawCode : '';
+  if (code) {
+    const holder = [...clients].find(o => o.code === code);
+    if (holder) { mode = holder.mode; blitz = holder.blitz; } else if (mode === 'solo') mode = 'duo';
+  }
+  const c = { ws, name, skin, mode, blitz: !!blitz, code, player: null, lastIn: Date.now() };
   clients.add(c);
   if (!running) startMatch();
   else if (overAt < 0 && time < JOIN_WINDOW) { // late joiners drop in while the match is young
     const size = TEAM_SIZES[gameMode.team];
     // In team modes a late joiner first takes over a bot's place on a team that already has a human, so friends
     // who connect a few seconds apart still end up together
-    const host = size > 1 && players.find(h => h.alive && !h.bot && players.some(q => q.alive && q.bot && q.team === h.team));
+    const codeOf = p => { for (const o of clients) if (o.player === p) return o.code; return ''; };
+    const host = size > 1 && players.find(h => h.alive && !h.bot && codeOf(h) === code && players.some(q => q.alive && q.bot && q.team === h.team));
     if (host) {
       const bot = players.find(q => q.alive && q.bot && q.team === host.team);
       players.splice(players.indexOf(bot), 1);
@@ -175,6 +187,6 @@ function broadcast() {
   }
 }
 
-const status = () => ({ online: clients.size, running, mode: running ? gameMode : null, alive: running ? players.filter(p => p.alive).length : 0, matchTime: Math.round(time) });
+const status = () => ({ online: clients.size, running, mode: running ? gameMode : null, teamCodes: new Set([...clients].map(c => c.code).filter(Boolean)).size, alive: running ? players.filter(p => p.alive).length : 0, matchTime: Math.round(time) });
 
 globalThis.SIM = { join, input, leave, tick, broadcast, status };

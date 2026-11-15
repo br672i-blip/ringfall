@@ -105,6 +105,18 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .title span{color:var(--accent)}
 .tag{color:var(--muted);margin:6px 0 20px;font-size:16px}
 #playerName{width:100%;box-sizing:border-box;font:700 18px var(--f-body);text-align:center;padding:11px;border-radius:5px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.95);color:#222;margin-bottom:10px}
+#teamCodes{margin:0 0 12px}
+.team-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.teambtn{font:700 16px var(--f-body);color:#fff;background:#50afab;border:0;border-bottom:3px solid #387c79;border-radius:5px;padding:9px 0;cursor:pointer}
+.teambtn.grey{background:#7a7a7a;border-bottom-color:#3e3e3e}
+.teambtn:hover{filter:brightness(90%)}
+.teambtn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#joinRow{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:6px}
+#joinRow .teambtn{padding:9px 18px}
+#teamCodeInput{font:700 18px var(--f-body);text-align:center;letter-spacing:.2em;text-transform:uppercase;padding:8px;border-radius:5px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.95);color:#222}
+#teamInfo{margin-top:6px;padding:10px;border-radius:6px;background:rgba(80,175,171,.18);border:1px solid rgba(80,175,171,.5)}
+#teamInfo b{font-size:22px;letter-spacing:.18em;color:#fff;margin-left:6px}
+#teamInfo small{display:block;color:var(--muted);margin:2px 0 8px}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:8px}
 .seg button{font:700 16px var(--f-body);color:#fff;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.14);border-radius:5px;padding:8px 0;cursor:pointer}
 .seg button[aria-checked="true"]{border-color:var(--accent);background:rgba(255,180,0,.2)}
@@ -238,6 +250,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
       <button type="button" data-team="solo" role="radio">Solo</button><button type="button" data-team="duo" role="radio">Duo</button><button type="button" data-team="squad" role="radio">Squad</button>
     </div>
     <label class="blitz"><input type="checkbox" id="blitzBox"> <span><b>Blitz</b>: the red zone closes twice as fast</span></label>
+    <div id="teamCodes" hidden>
+      <div class="team-btns"><button type="button" class="teambtn" id="createTeamBtn">Create Team</button><button type="button" class="teambtn" id="joinTeamBtn">Join Team</button></div>
+      <div id="joinRow" hidden><input id="teamCodeInput" maxlength="4" autocomplete="off" spellcheck="false" placeholder="Team code" aria-label="Team code"><button type="button" class="teambtn" id="joinCodeBtn">Join</button></div>
+      <div id="teamInfo" hidden><div>Team code <b id="teamCodeShow"></b></div><small id="teamHint"></small>
+        <div class="team-btns"><button type="button" class="teambtn" id="copyTeamBtn">Copy link</button><button type="button" class="teambtn grey" id="leaveTeamBtn">Leave team</button></div></div>
+    </div>
     <div class="btns" style="flex-direction:column"><button type="button" class="btn" id="onlineBtn" hidden>Play Online</button><button type="button" class="btn" id="playBtn">Play Solo</button></div>
     <p id="netStatus" class="tag" style="margin:12px 0 0" hidden></p>
     <dl class="keys">
@@ -3163,7 +3181,7 @@ function netConnect() {
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
   net = { ws, ready: false, myId: -1, spectator: false, byId: new Map(), obs: new Map(), roster: new Map(), tanks: new Map(), lastIn: 0, sx: 0, sy: 0 };
   setNetStatus('Connecting…'); $('onlineBtn').disabled = true;
-  ws.onopen = () => netSend({ t: 'join', name: myName, skin: mySkin, mode: gameMode.team, blitz: gameMode.blitz ? 1 : 0 });
+  ws.onopen = () => netSend({ t: 'join', name: myName, skin: mySkin, mode: gameMode.team, blitz: gameMode.blitz ? 1 : 0, code: teamCode || '' });
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === 'welcome') netWelcome(m); else if (m.t === 's' && net && net.ready) netSnap(m); };
   ws.onclose = () => { const wasReady = net && net.ready; net = null; $('onlineBtn').disabled = false; if (state !== 'menu') toMenu(); setNetStatus(wasReady ? 'Disconnected from the server.' : 'Could not reach the game server.'); };
 }
@@ -3185,7 +3203,8 @@ function netWelcome(m) {
   document.getElementById('feed').innerHTML = '';
   if (m.mode) { // say what this match is, and that your own pick counts toward the next one
     const nm = t => t[0].toUpperCase() + t.slice(1), here = nm(m.mode.team) + (m.mode.blitz ? ' Blitz' : ''), mine = nm(gameMode.team) + (gameMode.blitz ? ' Blitz' : '');
-    pushNote('Online match: ' + here + (here !== mine ? '. Your pick (' + mine + ') counts for the next match' : ''));
+    pushNote('Online match: ' + here + (m.code ? ' · team ' + m.code : '') + (here !== mine && !m.code ? '. Your pick (' + mine + ') counts for the next match' : ''));
+    if (m.code && m.mode.team === 'solo') pushNote('Team codes group you in Duo and Squad matches. This one is Solo.');
   }
   show('menu', false); show('over', false); show('pause', false); show('hud', true); show('spec', false); show('touch', touchMode);
   setNetStatus('');
@@ -3321,6 +3340,39 @@ function netUpdate(dt) {
 }
 document.getElementById('onlineBtn').addEventListener('click', netConnect);
 if (ONLINE) { show('onlineBtn', true); $('playBtn').classList.add('alt'); }
+
+// ---- team codes: Create Team makes a short code to share; anyone who joins with it plays on your team ----
+let teamCode = '';
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I to mix up
+const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+function setTeamCode(code) {
+  teamCode = code;
+  show('teamInfo', !!code); show('joinRow', false);
+  if (code) {
+    if (gameMode.team === 'solo') setMode('duo'); // teams need Duo or Squad
+    $('teamCodeShow').textContent = code;
+    $('teamHint').textContent = 'Share it. Everyone who joins with this code plays on your team.';
+    $('onlineBtn').textContent = 'Play Online with team ' + code;
+  } else $('onlineBtn').textContent = 'Play Online';
+}
+if (ONLINE) {
+  show('teamCodes', true);
+  $('createTeamBtn').addEventListener('click', () => { let c = ''; for (let i = 0; i < 4; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; setTeamCode(c); });
+  $('joinTeamBtn').addEventListener('click', () => { show('teamInfo', false); show('joinRow', true); $('teamCodeInput').focus(); });
+  const joinCode = () => { const c = cleanCode($('teamCodeInput').value); if (c.length === 4) setTeamCode(c); else $('teamCodeInput').focus(); };
+  $('joinCodeBtn').addEventListener('click', joinCode);
+  $('teamCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinCode(); });
+  $('teamCodeInput').addEventListener('input', e => { e.target.value = cleanCode(e.target.value); });
+  $('leaveTeamBtn').addEventListener('click', () => setTeamCode(''));
+  $('copyTeamBtn').addEventListener('click', () => {
+    const link = location.origin + '/?team=' + teamCode;
+    const done = () => { $('copyTeamBtn').textContent = 'Copied!'; setTimeout(() => { $('copyTeamBtn').textContent = 'Copy link'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, () => prompt('Copy this link', link));
+    else prompt('Copy this link', link);
+  });
+  // a shared link (?team=CODE) fills the code in
+  try { const c = cleanCode(new URLSearchParams(location.search).get('team')); if (c.length === 4) setTeamCode(c); } catch (e) {}
+}
 
 // ---------- loop ----------
 let last = performance.now();
