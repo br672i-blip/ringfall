@@ -36,7 +36,10 @@ function freeSpot(avoid, inZone) {
 function wantedMode() {
   const votes = new Map();
   for (const c of clients) { const k = c.mode + (c.blitz ? '+blitz' : ''); votes.set(k, (votes.get(k) || 0) + 1); }
-  let best = 'solo', n = 0; for (const [k, v] of votes) if (v > n) { best = k; n = v; }
+  // a running match keeps its mode on a tie; otherwise the most-wanted mode (first joiner breaks ties)
+  const cur = running ? gameMode.team + (gameMode.blitz ? '+blitz' : '') : null;
+  let best = cur && votes.has(cur) ? cur : 'solo', n = cur && votes.has(cur) ? votes.get(cur) : 0;
+  for (const [k, v] of votes) if (v > n) { best = k; n = v; }
   return { team: best.split('+')[0], blitz: best.endsWith('+blitz') };
 }
 let botName = 0;
@@ -98,6 +101,13 @@ function join(ws, rawName, rawSkin, rawMode, blitz, rawCode) {
   }
   const c = { ws, name, skin, mode, blitz: !!blitz, code, player: null, lastIn: Date.now() };
   clients.add(c);
+  // A young match restarts in a different mode when most connected players now want that mode
+  // (e.g. a solo match someone started a moment ago, and two friends arrive asking for Squad)
+  const want = running && overAt < 0 && time < JOIN_WINDOW ? wantedMode() : null;
+  if (want && (want.team !== gameMode.team || want.blitz !== gameMode.blitz)) {
+    console.log(`Switching to ${want.team}${want.blitz ? ' blitz' : ''}: most players want it.`);
+    startMatch(); console.log(`${name} joined (${clients.size} online).`); return c;
+  }
   if (!running) startMatch();
   else if (overAt < 0 && time < JOIN_WINDOW) { // late joiners drop in while the match is young
     const size = TEAM_SIZES[gameMode.team];

@@ -2213,7 +2213,17 @@ function setMode(team, blitz) {
   const label = gameMode.team[0].toUpperCase() + gameMode.team.slice(1);
   document.getElementById('blitzBox').checked = gameMode.blitz;
   document.getElementById('modeName').textContent = label + (gameMode.blitz ? ' · Blitz' : '');
-  document.getElementById('playBtn').textContent = 'Play ' + label;
+  playLabels();
+}
+// Button labels say exactly what they do. When the page comes from a game server, the big button plays online
+// and the other one is an offline practice match against bots.
+function playLabels() {
+  const label = gameMode.team[0].toUpperCase() + gameMode.team.slice(1) + (gameMode.blitz ? ' Blitz' : '');
+  const play = document.getElementById('playBtn'), online = document.getElementById('onlineBtn');
+  if (!play || !online) return;
+  // runs during start-up too, before ONLINE and teamCode are declared further down, so read them safely
+  play.textContent = window.RINGFALL_ONLINE ? 'Play ' + label + ' offline (vs bots)' : 'Play ' + label;
+  online.textContent = teamCode ? 'Play ' + label + ' Online · team ' + teamCode : 'Play ' + label + ' Online';
 }
 (function buildModePicker() {
   const pick = document.getElementById('modePick'); if (!pick || !pick.querySelectorAll) return;
@@ -3341,10 +3351,10 @@ function netUpdate(dt) {
   stepFx(dt);
 }
 document.getElementById('onlineBtn').addEventListener('click', netConnect);
-if (ONLINE) { show('onlineBtn', true); $('playBtn').classList.add('alt'); }
+if (ONLINE) { show('onlineBtn', true); $('playBtn').classList.add('alt'); playLabels(); }
 
 // ---- team codes: Create Team makes a short code to share; anyone who joins with it plays on your team ----
-let teamCode = '';
+var teamCode = ''; // var: the play-button labels read it during start-up, before this line runs
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I to mix up
 const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
 function setTeamCode(code) {
@@ -3354,8 +3364,8 @@ function setTeamCode(code) {
     if (gameMode.team === 'solo') setMode('duo'); // teams need Duo or Squad
     $('teamCodeShow').textContent = code;
     $('teamHint').textContent = 'Share it. Everyone who joins with this code plays on your team.';
-    $('onlineBtn').textContent = 'Play Online with team ' + code;
-  } else $('onlineBtn').textContent = 'Play Online';
+  }
+  playLabels();
 }
 if (ONLINE) {
   show('teamCodes', true);
