@@ -168,7 +168,7 @@ a{color:inherit}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
       <button type="button" class="menu-option btn-blue btn-darken" data-show-news><span>What's New</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg></button>
-      <a class="menu-option btn-blue btn-darken" href="/dnd-rpg-adventure/"><span>D&amp;D RPG</span>
+      <a class="menu-option btn-blue btn-darken" href="/dnd-rpg-adventure/play/"><span>D&amp;D RPG</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
     </div>
   </div>
@@ -187,7 +187,7 @@ a{color:inherit}
         <a class="btn-social btn-home btn-darken" href="/" aria-label="All games" title="All games">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
         </a>
-        <a class="btn-social btn-rpg btn-darken" href="/dnd-rpg-adventure/" aria-label="D&amp;D RPG Adventure" title="Also try: D&amp;D RPG Adventure">
+        <a class="btn-social btn-rpg btn-darken" href="/dnd-rpg-adventure/play/" aria-label="D&amp;D RPG Adventure" title="Also try: D&amp;D RPG Adventure">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>
         </a>
         <a class="btn-social btn-news btn-darken" href="#news-block" data-show-news aria-label="What's new" title="What's new">
@@ -197,7 +197,7 @@ a{color:inherit}
     </div>
 
     <div id="start-menu" class="menu-block">
-      <form id="play-form" action="play/" autocomplete="off">
+      <form id="play-form" action="play/?start=solo" autocomplete="off">
         <div class="name-row">
           <label for="player-name-input" class="sr">Your name</label>
           <input id="player-name-input" class="menu-option player-name-input" type="text" maxlength="16" placeholder="Enter your name here" spellcheck="false">
@@ -213,7 +213,7 @@ a{color:inherit}
       </form>
       <div class="row">
         <button type="button" class="menu-option btn-green btn-darken" data-drawer="online" aria-expanded="false" aria-controls="drawer-online">Play Online</button>
-        <a class="menu-option btn-yellow btn-darken" href="/dnd-rpg-adventure/">
+        <a class="menu-option btn-yellow btn-darken" href="/dnd-rpg-adventure/play/">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z" fill="rgba(0,0,0,.25)"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>D&amp;D RPG</a>
       </div>
       <div class="row">
@@ -328,7 +328,7 @@ document.getElementById('play-form').addEventListener('submit', e => {
   e.preventDefault();
   const name = nameInput.value.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16);
   try { if (name) localStorage.setItem('ringfall-name', name); } catch (err) {}
-  location.href = 'play/';
+  location.href = 'play/?start=solo';
 });
 
 // The blue dice button fills in a random name (the same pool the bots use).
