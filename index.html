@@ -164,6 +164,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
     <div class="inv"><span class="nm"><i style="background:#2a9d3a"></i>5.56mm</span><span class="num" id="n_a556">0</span></div>
     <div class="inv"><span class="nm"><i style="background:#262626;box-shadow:inset 0 0 0 2px #e8c25a"></i>.50 AE</span><span class="num" id="n_a50">0</span></div>
     <div class="inv"><span class="nm"><i style="background:#4a5a1e;box-shadow:inset 0 0 0 2px #c9d18a"></i>.308 Subsonic</span><span class="num" id="n_a308">0</span></div>
+    <div class="inv"><span class="nm"><i style="background:#7a2f1c;box-shadow:inset 0 0 0 2px #e0a43a"></i>Rockets</span><span class="num" id="n_rkt">0</span></div>
   </div>
 
   <div id="mapwrap" class="bot">
@@ -281,6 +282,8 @@ const GUNS = {
   awm:    { name: 'AWM-S', auto: false, an: true, short: 'AWM', ammo: 'a308', mag: 5,   dmg: 110, rate: 1.6, spread: .003, speed: 3400, range: 2200, reload: 3.2, pellets: 1, len: 64, w: 9,  tier: 5, move: .86, pref: 720 },
   qbb:    { name: 'QBB-97', auto: true,        short: 'QBB',  ammo: 'a556', mag: 75,  dmg: 12, rate: .08,  spread: .11,  speed: 1900, range: 1000, reload: 4.2, pellets: 1, len: 50, w: 10, tier: 3, move: .87, pref: 360 },
   dp28:   { name: 'DP-28', auto: true,         short: 'DP28', ammo: 'a762', mag: 47,  dmg: 15, rate: .1,   spread: .1,   speed: 1900, range: 1000, reload: 4.4, pellets: 1, len: 54, w: 9,  tier: 3, move: .86, pref: 380 },
+  rpg:    { name: 'RPG-7', an: true, auto: false, short: 'RPG', ammo: 'rkt', mag: 1, dmg: 90, rate: 1, spread: .02, speed: 1000, range: 1100, reload: 3, pellets: 1, len: 72, w: 10, tier: 5, move: .82, pref: 450,
+            rocket: { r: 150, dmg: 90 } }, // fires a rocket that explodes on impact or at the end of its range
   m249:   { name: 'M249', an: true, auto: true,          short: 'M249', ammo: 'a556', mag: 100, dmg: 13, rate: .075, spread: .12,  speed: 1900, range: 1000, reload: 5,   pellets: 1, len: 50, w: 11, tier: 5, move: .85, pref: 380 },
 };
 // Dual pistols: carry two of the same pistol for double the magazine, alternating shots, a bit more spread
@@ -326,6 +329,7 @@ const GUN_ART = {
   awm:    { len: 72, off: -14, grip: 16, fore: 40, parts: [[0, -4, 18, 8, '#55613a'], [18, -4.5, 26, 9, '#4b5634'], [44, -2, 22, 4, '#1a1a1a'], [66, -3, 6, 6, '#111'], [30, 4.5, 3, 7, '#666'], [16, -3.5, 24, 7, '#0f0f0f'], [16, -2.5, 2, 5, '#5a8fb0'], [38, -2.5, 2, 5, '#5a8fb0']] },
   qbb:    { len: 56, off: -12, grip: 16, fore: 34, parts: [[0, -5, 38, 10, '#2b2b2b'], [10, -2, 20, 4, '#444'], [38, -2, 18, 4, '#161616']], dots: [[13, 9, 8, '#3a3a3a'], [13, 9, 3, '#222']] },
   dp28:   { len: 60, off: -12, grip: 14, fore: 36, parts: [[0, -3.5, 16, 7, WOOD], [16, -3.5, 22, 7, '#2a2a2a'], [38, -2.5, 22, 5, '#3a3a3a']], dots: [[26, 0, 9, '#3d3d3d'], [26, 0, 3, '#222'], [44, 0, 1.2, '#111'], [49, 0, 1.2, '#111'], [54, 0, 1.2, '#111']] },
+  rpg:    { len: 76, off: -22, grip: 24, fore: 42, parts: [[0, -3.5, 60, 7, '#55613a'], [0, -1, 58, 2, '#6b7a48'], [0, -4.5, 5, 9, '#3a3a3a'], [24, 3.5, 4, 8, '#222'], [36, 3.5, 3, 6, '#222'], [30, -7, 7, 3.5, '#222'], [58, -6, 9, 12, '#6e5530'], [67, -4.5, 5, 9, '#7d6238'], [72, -2.5, 4, 5, '#8a6d3e']] },
   m249:   { len: 60, off: -12, grip: 14, fore: 36, parts: [[0, -4, 12, 8, '#222'], [16, 6, 13, 11, '#4a5a36'], [16, 6, 13, 3, '#3c4a2c'], [12, -6, 22, 12, '#2a2a2a'], [34, -2, 26, 4, '#1a1a1a'], [44, -4.5, 12, 1.5, '#444'], [44, 3, 12, 1.5, '#444'], [20, -1.5, 10, 3, '#444']] },
 };
 const GUN_SCALE = 1.4; // guns are drawn larger in hand than their art units
@@ -343,9 +347,9 @@ function drawGunArt(c, id) {
 // Gun spawn weights from survev's loot tables: world = floor and ordinary spots (tier_guns),
 // chest = military crates and good buildings (tier_chest), airdrop = bunker and gold crate (tier_airdrop_rare)
 const LOOT_GUNS = {
-  world: { m9: 19, mp5: 10, m870: 9, glock: 7, mac10: 6, m416: 4, ump9: 3, ak47: 2.7, mp220: 2, spas12: 1, famas: .9, groza: .8, dp28: .5, mk12: .1, saiga: .1, scout: .1, mosin: .05, deagle: .05, svd: .05, vector: .01, scarh: .01, sv98: .01, qbb: .01, m249: .006 },
-  chest: { m416: 4, ak47: 4, mp220: 1.5, famas: 1.15, groza: 1.15, spas12: 1, mk12: .55, dp28: .55, mosin: .55, svd: .55, scout: .5, scarh: .27, saiga: .26, deagle: .15, vector: .1, sv98: .1, garand: .1, m249: .07, qbb: .05 },
-  airdrop: { garand: 6, awm: 3, m249: .6, sv98: .6, qbb: .5 },
+  world: { m9: 19, mp5: 10, m870: 9, glock: 7, mac10: 6, m416: 4, ump9: 3, ak47: 2.7, mp220: 2, spas12: 1, famas: .9, groza: .8, dp28: .5, mk12: .1, saiga: .1, scout: .1, mosin: .05, deagle: .05, svd: .05, vector: .01, scarh: .01, sv98: .01, qbb: .01, m249: .006, rpg: .003 },
+  chest: { m416: 4, ak47: 4, mp220: 1.5, famas: 1.15, groza: 1.15, spas12: 1, mk12: .55, dp28: .55, mosin: .55, svd: .55, scout: .5, scarh: .27, saiga: .26, deagle: .15, vector: .1, sv98: .1, garand: .1, m249: .07, qbb: .05, rpg: .04 },
+  airdrop: { garand: 6, awm: 3, m249: .6, sv98: .6, qbb: .5, rpg: .8 },
 };
 const GUN_WEIGHTS = LOOT_GUNS.world;
 // Rarity follows how often a gun turns up in the world: common, uncommon, rare, epic (airdrop-only guns are epic)
@@ -353,7 +357,7 @@ const RARITY_COL = { common: '#d6d6d6', uncommon: '#5fd35f', rare: '#4b9bff', ep
 for (const id in GUNS) { const w = LOOT_GUNS.world[id] || 0; GUNS[id].rarity = w >= 2 ? 'common' : w >= .5 ? 'uncommon' : w >= .05 ? 'rare' : 'epic'; }
 for (const id of PISTOLS) GUNS[id + '_dual'].rarity = GUNS[id].rarity; // a pair is as rare as the pistol
 const gunCol = id => RARITY_COL[GUNS[id].rarity];
-const AMMO = { a9: { name: '9mm', color: '#f5a623', stack: 60 }, a12: { name: '12 gauge', color: '#e0352b', stack: 10 }, a762: { name: '7.62mm', color: '#2f6fe0', stack: 60 }, a556: { name: '5.56mm', color: '#2a9d3a', stack: 60 }, a50: { name: '.50 AE', color: '#262626', tip: '#e8c25a', stack: 21 }, a308: { name: '.308 Subsonic', color: '#4a5a1e', tip: '#c9d18a', stack: 10 } };
+const AMMO = { a9: { name: '9mm', color: '#f5a623', stack: 60 }, a12: { name: '12 gauge', color: '#e0352b', stack: 10 }, a762: { name: '7.62mm', color: '#2f6fe0', stack: 60 }, a556: { name: '5.56mm', color: '#2a9d3a', stack: 60 }, a50: { name: '.50 AE', color: '#262626', tip: '#e8c25a', stack: 21 }, rkt: { name: 'Rocket', color: '#7a2f1c', tip: '#e0a43a', stack: 2 }, a308: { name: '.308 Subsonic', color: '#4a5a1e', tip: '#c9d18a', stack: 10 } };
 const HEALS = {
   bandage: { name: 'Bandage', time: 3, hp: 15, cap: 75 },
   medkit:  { name: 'Med kit', time: 6, hp: 100, cap: 100 },
@@ -361,10 +365,10 @@ const HEALS = {
   pills:   { name: 'Pills', time: 5, boost: 50 },
 };
 const BAG = [
-  { a9: 120, a12: 15, a762: 90,  a556: 90,  a50: 49,  a308: 10, bandage: 5,  medkit: 1, soda: 2,  pills: 1, frag: 3, smoke: 3, mirv: 1, strobe: 1 },
-  { a9: 240, a12: 30, a762: 180, a556: 180, a50: 98,  a308: 20, bandage: 10, medkit: 2, soda: 5,  pills: 2, frag: 6, smoke: 6, mirv: 2, strobe: 1 },
-  { a9: 330, a12: 60, a762: 240, a556: 240, a50: 147, a308: 40, bandage: 15, medkit: 3, soda: 10, pills: 3, frag: 9, smoke: 9, mirv: 3, strobe: 2 },
-  { a9: 420, a12: 90, a762: 300, a556: 300, a50: 196, a308: 80, bandage: 30, medkit: 4, soda: 15, pills: 4, frag: 12, smoke: 12, mirv: 4, strobe: 3 },
+  { a9: 120, a12: 15, a762: 90,  a556: 90,  a50: 49,  a308: 10, rkt: 2, bandage: 5,  medkit: 1, soda: 2,  pills: 1, frag: 3, smoke: 3, mirv: 1, strobe: 1 },
+  { a9: 240, a12: 30, a762: 180, a556: 180, a50: 98,  a308: 20, rkt: 4, bandage: 10, medkit: 2, soda: 5,  pills: 2, frag: 6, smoke: 6, mirv: 2, strobe: 1 },
+  { a9: 330, a12: 60, a762: 240, a556: 240, a50: 147, a308: 40, rkt: 6, bandage: 15, medkit: 3, soda: 10, pills: 3, frag: 9, smoke: 9, mirv: 3, strobe: 2 },
+  { a9: 420, a12: 90, a762: 300, a556: 300, a50: 196, a308: 80, rkt: 8, bandage: 30, medkit: 4, soda: 15, pills: 4, frag: 12, smoke: 12, mirv: 4, strobe: 3 },
 ];
 const GEAR = {
   helmet: { name: 'Helmet', red: [0, .075, .12, .165], color: ['', '#6d7a45', '#3f5d80', '#2b2b2b'] },
@@ -426,7 +430,7 @@ const CRATES = {
 const CRATE_WEIGHTS = { wood: 62, military: 12, medical: 10, ammo: 10, explosive: 6 };
 const ROOFS = ['#7d4b3a', '#4f5f72', '#6a7546', '#8a6e4b', '#5d4f6e'];
 // Bullet tracer colours by ammo (survev's tracerColors): [regular, saturated for your own shots]
-const TRACER = { a9: ['#fee2c6', '#ffd9b3'], a12: ['#fedcdc', '#fedcdc'], a762: ['#c5d6fe', '#abc4ff'], a556: ['#a9ff92', '#a9ff92'], a50: ['#fff088', '#fff088'], a308: ['#252b00', '#465000'] };
+const TRACER = { rkt: ['#ffb066', '#ffb066'], a9: ['#fee2c6', '#ffd9b3'], a12: ['#fedcdc', '#fedcdc'], a762: ['#c5d6fe', '#abc4ff'], a556: ['#a9ff92', '#a9ff92'], a50: ['#fff088', '#fff088'], a308: ['#252b00', '#465000'] };
 
 // ---------- spatial grid ----------
 class Grid {
@@ -1149,7 +1153,7 @@ function makePlayer(name, x, y, isBot, color) {
   return {
     id: uid++, name, x, y, r: 22, angle: rand(0, TAU), hp: 100, boost: 0, alive: true, bot: isBot, color,
     helmet: 0, vest: 0, bag: 0, scopes: { 1: true }, scope: 1, thr: { frag: 0, smoke: 0, mirv: 0, strobe: 0 }, thrSel: 'frag',
-    slots: [null, null], cur: 2, lastSlot: 2, ammo: { a9: 0, a12: 0, a762: 0, a556: 0, a50: 0, a308: 0 }, inv: { bandage: 0, medkit: 0, soda: 0, pills: 0 },
+    slots: [null, null], cur: 2, lastSlot: 2, ammo: { a9: 0, a12: 0, a762: 0, a556: 0, a50: 0, a308: 0, rkt: 0 }, inv: { bandage: 0, medkit: 0, soda: 0, pills: 0 },
     fireCd: 0, reloadT: 0, reloadMax: 1, healT: 0, healMax: 1, healType: null, kick: 0, punchT: 0, punchHand: 0, hurt: 0,
     lastShot: -9, lastHitBy: null, lastHitT: -9, showBarT: -9, kills: 0, dmg: 0, taken: 0, moving: false, place: 0, killedBy: null, killedWith: null, aimDist: 300,
     input: { mx: 0, my: 0, angle: 0, fire: false, press: 0, reload: false, heal: null, slot: null }, pressUsed: 0,
@@ -1264,6 +1268,7 @@ function fire(p) {
   }
   const g = p.slots[p.cur]; if (!g) return false;
   const def = GUNS[g.id];
+  if (def.rocket && p.bot && p.ai.target && d2(p.x, p.y, p.ai.target.x, p.ai.target.y) < 230 * 230) return false;
   if (p.reloadT > 0) { if (def.oneByOne && g.mag > 0) p.reloadT = 0; else return false; }
   if (g.mag <= 0) { startReload(p); p.fireCd = .25; return true; }
   p.fireCd = def.rate + (p.bot && def.rate > .15 ? rand(.05, .3) * (1.2 - p.ai.skill) : 0);
@@ -1279,7 +1284,9 @@ function shoot(p, g, def) {
   const spread = def.spread * (p.moving ? 1.5 : 1) * (p.bot ? BOT_SPREAD : 1);
   for (let i = 0; i < def.pellets; i++) {
     const a = p.angle + (def.pellets > 1 ? (i / (def.pellets - 1) - .5) * spread + rand(-.03, .03) : gauss() * spread * .6);
-    bullets.push({ x: p.x + ox + ca * (p.r - 4), y: p.y + oy + sa * (p.r - 4), dx: Math.cos(a), dy: Math.sin(a), speed: def.speed * rand(.95, 1.05), dmg: def.dmg, owner: p, wid: g.id, range: def.range * rand(.92, 1.04), trav: 0, falloff: !!def.falloff, w: def.dmg > 40 ? 4 : def.pellets > 1 ? 2.2 : 3 });
+    const b = { x: p.x + ox + ca * (p.r - 4), y: p.y + oy + sa * (p.r - 4), dx: Math.cos(a), dy: Math.sin(a), speed: def.speed * rand(.95, 1.05), dmg: def.dmg, owner: p, wid: g.id, range: def.range * rand(.92, 1.04), trav: 0, falloff: !!def.falloff, w: def.dmg > 40 ? 4 : def.pellets > 1 ? 2.2 : 3 };
+    if (def.rocket) Object.assign(b, { shell: true, dmg: 0, w: 6, blastR: def.rocket.r, blastDmg: def.rocket.dmg, x: p.x + ca * (p.r + 20), y: p.y + sa * (p.r + 20) });
+    bullets.push(b);
   }
   shotFx(p, g.id); emit('shot', p.id, g.id, Math.round(p.angle * 1000) / 1000);
   if (g.mag === 0) { p.burst = 0; startReload(p); }
@@ -1294,6 +1301,10 @@ function shotFx(p, gid) {
   particles.push({ type: 'flash', x: mx, y: my, a: p.angle, life: .06, max: .06, size: def.pellets > 1 ? 26 : 18 });
   particles.push({ type: 'casing', x: p.x + ca * (p.r + 8), y: p.y + sa * (p.r + 8), vx: -sa * rand(120, 200) + ca * rand(-30, 30), vy: ca * rand(120, 200) + sa * rand(-30, 30), life: .5, max: .5, a: rand(0, TAU), color: def.pellets > 1 ? '#d23a2a' : '#d9b24a' });
   sfx(def.pellets > 1 ? 'shotgun' : def.dmg > 40 ? 'sniper' : def.rate < .06 ? 'smg' : def.ammo === 'a9' ? 'pistol' : 'ar', p.x, p.y);
+  if (def.rocket) { // backblast out of the rear of the tube
+    for (let i = 0; i < 7; i++) particles.push({ type: 'smoke', x: p.x - ca * rand(20, 40), y: p.y - sa * rand(20, 40), vx: -ca * rand(60, 160) + rand(-40, 40), vy: -sa * rand(60, 160) + rand(-40, 40), life: rand(.6, 1.1), max: 1.1, size: rand(12, 22) });
+    sfx('boom', p.x, p.y);
+  }
   if (p === me) cam.shake = Math.max(cam.shake, def.dmg > 40 ? 7 : def.pellets > 1 ? 6 : 2);
 }
 function hitFx(p, src, gas) {
@@ -1883,7 +1894,7 @@ function weaponIcon(wid) {
   }
   return FEED_ICONS[wid] = c.toDataURL();
 }
-const CAUSE = { gas: 'the red zone', barrel: 'an explosion', frag: 'their own grenade', mirv: 'their own grenade', airstrike: 'an airstrike', airdrop: 'a falling airdrop', tank: 'a tank' };
+const CAUSE = { gas: 'the red zone', barrel: 'an explosion', frag: 'their own grenade', mirv: 'their own grenade', airstrike: 'an airstrike', airdrop: 'a falling airdrop', tank: 'a tank', rpg: 'their own rocket' };
 function addFeedRow(el) {
   const box = document.getElementById('feed'); box.prepend(el);
   while (box.children.length > 6) box.lastChild.remove();
@@ -2116,7 +2127,7 @@ function update(dt) {
     }
     if (bt <= 1) {
       const hx = b.x + dx * bt, hy = b.y + dy * bt; b.trav += step * bt;
-      if (b.shell) { bullets.splice(i, 1); explode(hx, hy, b.owner, 'tank', TANK.blastR, TANK.blastDmg); continue; }
+      if (b.shell) { bullets.splice(i, 1); explode(hx, hy, b.owner, b.wid, b.blastR || TANK.blastR, b.blastDmg || TANK.blastDmg); continue; }
       if (hitT) { // armour: bullets do half damage and ping off
         damageTank(hitT, b.dmg * .5, b.owner);
         for (let k = 0; k < 4; k++) particles.push({ type: 'dot', x: hx, y: hy, vx: -b.dx * rand(60, 200) + rand(-120, 120), vy: -b.dy * rand(60, 200) + rand(-120, 120), life: .25, max: .25, size: rand(1.5, 3), color: '#ffe08a' });
@@ -2130,7 +2141,7 @@ function update(dt) {
       bullets.splice(i, 1); continue;
     }
     b.x += dx; b.y += dy; b.trav += step;
-    if (b.trav >= b.range - .01) { bullets.splice(i, 1); if (b.shell) explode(b.x, b.y, b.owner, 'tank', TANK.blastR, TANK.blastDmg); }
+    if (b.trav >= b.range - .01) { bullets.splice(i, 1); if (b.shell) explode(b.x, b.y, b.owner, b.wid, b.blastR || TANK.blastR, b.blastDmg || TANK.blastDmg); }
   }
   // grenades: arc through the air, bounce on landing, then roll to a stop
   const tall = o => o.kind === 'wall' || o.kind === 'tree';
@@ -2773,6 +2784,15 @@ function render() {
   for (const p of players) if (p.alive && p.x > x0 - 40 && p.x < x1 + 40 && p.y > y0 - 40 && p.y < y1 + 40) drawPlayer(p);
   ctx.lineCap = 'round';
   for (const b of bullets) {
+    if (GUNS[b.wid] && GUNS[b.wid].rocket) {
+      const tl = Math.min(b.trav, 160), gr = ctx.createLinearGradient(b.x - b.dx * tl, b.y - b.dy * tl, b.x, b.y);
+      gr.addColorStop(0, 'rgba(150,150,150,0)'); gr.addColorStop(.7, 'rgba(190,190,190,.55)'); gr.addColorStop(1, 'rgba(255,170,60,.95)');
+      ctx.strokeStyle = gr; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(b.x - b.dx * tl, b.y - b.dy * tl); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.dy, b.dx));
+      ctx.fillStyle = '#ffcf6a'; ctx.beginPath(); ctx.moveTo(-14, -3); ctx.lineTo(-24 - Math.random() * 8, 0); ctx.lineTo(-14, 3); ctx.fill();
+      ctx.fillStyle = '#55613a'; ctx.fillRect(-14, -2.5, 12, 5); ctx.fillStyle = '#6e5530'; ctx.beginPath(); ctx.moveTo(-2, -5); ctx.lineTo(6, -3); ctx.lineTo(10, 0); ctx.lineTo(6, 3); ctx.lineTo(-2, 5); ctx.closePath(); ctx.fill();
+      ctx.restore(); continue;
+    }
     if (b.wid === 'tank') { // tank shell: a dark slug with a hot trail
       const tl = Math.min(b.trav, 70), gr = ctx.createLinearGradient(b.x - b.dx * tl, b.y - b.dy * tl, b.x, b.y);
       gr.addColorStop(0, 'rgba(255,150,40,0)'); gr.addColorStop(1, 'rgba(255,190,90,.9)');
@@ -3006,7 +3026,7 @@ function netSnap(m) {
   }
   if (P && !net.spectator) {
     const keys4 = (o, ks, v) => ks.forEach((k, i) => { o[k] = v[i]; });
-    keys4(me.ammo, ['a9', 'a12', 'a762', 'a556', 'a50', 'a308'], P.am); keys4(me.inv, ['bandage', 'medkit', 'soda', 'pills'], P.inv); keys4(me.thr, THROW_ORDER, P.thr);
+    keys4(me.ammo, ['a9', 'a12', 'a762', 'a556', 'a50', 'a308', 'rkt'], P.am); keys4(me.inv, ['bandage', 'medkit', 'soda', 'pills'], P.inv); keys4(me.thr, THROW_ORDER, P.thr);
     me.scopes = { 1: true }; [2, 4, 8].forEach((z, i) => { if (P.sc[i]) me.scopes[z] = true; });
     if (P.scope > me.scope && me.scopes[P.scope]) me.scope = P.scope; if (!me.scopes[me.scope]) me.scope = 1;
     if (me.slots[0]) me.slots[0].mag = P.mg[0]; if (me.slots[1]) me.slots[1].mag = P.mg[1];

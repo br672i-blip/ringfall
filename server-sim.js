@@ -131,7 +131,7 @@ function broadcast() {
   const common = JSON.stringify(c);
   for (const cl of clients) {
     const p = cl.player && players.includes(cl.player) ? cl.player : null;
-    const priv = p ? JSON.stringify({ am: [p.ammo.a9, p.ammo.a12, p.ammo.a762, p.ammo.a556, p.ammo.a50, p.ammo.a308], inv: [p.inv.bandage, p.inv.medkit, p.inv.soda, p.inv.pills],
+    const priv = p ? JSON.stringify({ am: [p.ammo.a9, p.ammo.a12, p.ammo.a762, p.ammo.a556, p.ammo.a50, p.ammo.a308, p.ammo.rkt], inv: [p.inv.bandage, p.inv.medkit, p.inv.soda, p.inv.pills],
       thr: THROW_ORDER.map(t => p.thr[t]), sc: [2, 4, 8].map(z => p.scopes[z] ? 1 : 0), scope: p.scope,
       mg: [p.slots[0] ? p.slots[0].mag : 0, p.slots[1] ? p.slots[1].mag : 0], rl: [f2(p.reloadT), p.reloadMax], boost: r(p.boost), dmg: r(p.dmg), last: p.lastSlot }) : 'null';
     send(cl, '{"t":"s","c":' + common + ',"p":' + priv + '}');
