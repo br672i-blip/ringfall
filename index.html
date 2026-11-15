@@ -1480,7 +1480,11 @@ function kill(p, src, wid) {
   const left = players.filter(q => q.alive), teamsLeft = new Set(left.map(q => q.team));
   const teamOut = !teamsLeft.has(p.team);
   p.place = teamsLeft.size + (teamOut ? 1 : 0);
-  if (teamOut) for (const q of players) if (q.team === p.team) q.place = p.place; // the whole team shares the placing
+  if (teamOut) {
+    for (const q of players) if (q.team === p.team) q.place = p.place; // the whole team shares the placing
+    emit('tplace', p.team, p.place);
+    if (me && p.team === me.team && !me.alive && p !== me) teamRank(p.place);
+  }
   emit('kill', killer ? killer.id : -1, p.id, wid, p.place);
   killUi(p, killer, wid);
   if (teamsLeft.size === 1) {
@@ -1986,6 +1990,7 @@ function toMenu() {
   state = 'menu'; me = null; resetSim();
   show('over', false); show('hud', false); show('spec', false); show('touch', false); show('menu', true);
 }
+function teamRank(place) { me.place = place; const r = document.getElementById('oRank'); if (r) r.textContent = '#' + place; }
 function showOver(won) {
   show('over', true);
   const h = document.getElementById('overHead');
@@ -3158,7 +3163,7 @@ function netConnect() {
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
   net = { ws, ready: false, myId: -1, spectator: false, byId: new Map(), obs: new Map(), roster: new Map(), tanks: new Map(), lastIn: 0, sx: 0, sy: 0 };
   setNetStatus('Connecting…'); $('onlineBtn').disabled = true;
-  ws.onopen = () => netSend({ t: 'join', name: myName, skin: mySkin });
+  ws.onopen = () => netSend({ t: 'join', name: myName, skin: mySkin, mode: gameMode.team, blitz: gameMode.blitz ? 1 : 0 });
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === 'welcome') netWelcome(m); else if (m.t === 's' && net && net.ready) netSnap(m); };
   ws.onclose = () => { const wasReady = net && net.ready; net = null; $('onlineBtn').disabled = false; if (state !== 'menu') toMenu(); setNetStatus(wasReady ? 'Disconnected from the server.' : 'Could not reach the game server.'); };
 }
@@ -3173,25 +3178,30 @@ function netWelcome(m) {
   buildMinimap();
   net.byId.clear(); net.roster = new Map(m.roster.map(r => [r[0], r]));
   net.myId = m.id; net.spectator = m.id < 0; net.ready = true;
-  me = makePlayer(myName, MAP / 2, MAP / 2, false, (net.roster.get(m.id) || [])[2] || mySkin); me.id = m.id; me.alive = false; me.hitMarkT = -9; me.fresh = true;
+  const mr = net.roster.get(m.id) || [];
+  me = makePlayer(myName, MAP / 2, MAP / 2, false, mr[2] || mySkin); me.id = m.id; me.team = mr[4] != null ? mr[4] : m.id; me.slot = mr[5] || 0; me.alive = false; me.hitMarkT = -9; me.fresh = true;
   if (!net.spectator) net.byId.set(me.id, me);
   time = 0; startTime = 0; state = 'play';
   document.getElementById('feed').innerHTML = '';
+  if (m.mode) { // say what this match is, and that your own pick counts toward the next one
+    const nm = t => t[0].toUpperCase() + t.slice(1), here = nm(m.mode.team) + (m.mode.blitz ? ' Blitz' : ''), mine = nm(gameMode.team) + (gameMode.blitz ? ' Blitz' : '');
+    pushNote('Online match: ' + here + (here !== mine ? '. Your pick (' + mine + ') counts for the next match' : ''));
+  }
   show('menu', false); show('over', false); show('pause', false); show('hud', true); show('spec', false); show('touch', touchMode);
   setNetStatus('');
 }
 function netPlayer(id) {
   let p = net.byId.get(id);
   if (!p) {
-    const r = net.roster.get(id) || [id, 'Player', OUTFITS[1], 0];
-    p = makePlayer(r[1], 0, 0, !!r[3], r[2]); p.id = id; p.fresh = true; net.byId.set(id, p);
+    const r = net.roster.get(id) || [id, 'Player', OUTFITS[1], 0, id, 0];
+    p = makePlayer(r[1], 0, 0, !!r[3], r[2]); p.id = id; p.team = r[4] != null ? r[4] : id; p.slot = r[5] || 0; p.fresh = true; net.byId.set(id, p);
   }
   return p;
 }
 const ZSTATE = ['wait', 'shrink', 'done'];
 function netSnap(m) {
   const c = m.c, P = m.p;
-  if (c.R) for (const r of c.R) net.roster.set(r[0], r);
+  if (c.R) for (const r of c.R) { net.roster.set(r[0], r); const q = net.byId.get(r[0]); if (q && r[4] != null) { q.team = r[4]; q.slot = r[5] || 0; } }
   players = [];
   for (const a of c.P) {
     const [id, x, y, ang, hp, al, cur, s0, s1, hel, vest, bag, cook, cookT, thrSel, thHave, heal, kills] = a;
@@ -3260,7 +3270,14 @@ function netEvent(ev) {
       if (v === me) { me.killedBy = killer; me.killedWith = ev[3]; me.place = ev[4]; }
       killUi(v, killer, ev[3]); break;
     }
-    case 'win': { const w = net.byId.get(ev[1]); if (w) pushNote((w === me ? 'You' : w.name) + ' won the match'); if (ev[1] === me.id && me.alive) { me.place = 1; showOver(true); } break; }
+    case 'win': {
+      const w = net.byId.get(ev[1]); if (!w) break;
+      const mine = w.team === me.team, solo = players.filter(q => q.team === w.team).length === 1;
+      pushNote(mine ? (solo ? 'You won the match' : 'Your team won the match') : (solo ? w.name : w.name + "'s team") + ' won the match');
+      if (mine && !net.spectator) { me.place = 1; showOver(true); }
+      break;
+    }
+    case 'tplace': if (ev[1] === me.team && !me.alive) teamRank(ev[2]); break;
   }
 }
 // Send the current controls right away (also called on key and mouse changes, so input never waits for a frame)

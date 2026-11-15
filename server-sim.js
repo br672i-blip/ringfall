@@ -32,24 +32,39 @@ function freeSpot(avoid, inZone) {
   return freeSpotNear(x, y, 26);
 }
 
+// The mode most waiting players asked for (ties go to whoever joined first)
+function wantedMode() {
+  const votes = new Map();
+  for (const c of clients) { const k = c.mode + (c.blitz ? '+blitz' : ''); votes.set(k, (votes.get(k) || 0) + 1); }
+  let best = 'solo', n = 0; for (const [k, v] of votes) if (v > n) { best = k; n = v; }
+  return { team: best.split('+')[0], blitz: best.endsWith('+blitz') };
+}
+let botName = 0;
+const nextBotName = () => NAMES[botName++ % NAMES.length];
+// A team's members drop in a few steps apart around its spawn point
+const nearSpot = (s, k, size) => { const a = k / size * TAU + rand(-.3, .3); return k === 0 ? s : freeSpotNear(s[0] + Math.cos(a) * 70, s[1] + Math.sin(a) * 70, 26); };
+
 function startMatch() {
   genWorld(); resetSim(); me = NOBODY;
+  gameMode = wantedMode(); // zoneScale() reads this, so Blitz speeds up the zone here on the server
   zone = { cx: MAP / 2, cy: MAP / 2, r: MAP * .72, phase: 0, state: 'wait', timer: 0, tx: 0, ty: 0, tr: 0 };
   beginWait();
-  const humans = [...clients], bots = Math.max(0, TOTAL_PLAYERS - humans.length), spots = spawnSpots(humans.length + bots);
-  const names = NAMES.slice().sort(() => Math.random() - .5);
-  humans.forEach((c, i) => {
-    const s = spots[i];
-    c.player = makePlayer(c.name, s[0], s[1], false, c.skin || OUTFITS[(i * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
-    players.push(c.player);
-  });
-  for (let i = 0; i < bots; i++) {
-    const s = spots[humans.length + i];
-    players.push(makePlayer(names[i % names.length], s[0], s[1], true, OUTFITS[(i + 1) % OUTFITS.length]));
+  // Humans fill teams first, so friends who pick Duo or Squad play together; bots fill the rest
+  const humans = [...clients], size = TEAM_SIZES[gameMode.team];
+  let total = size === 1 ? TOTAL_PLAYERS : Math.floor((TOTAL_PLAYERS - 1) / size) * size;
+  total = Math.max(total, Math.ceil(humans.length / size) * size);
+  const teams = total / size, spots = spawnSpots(teams);
+  botName = Math.floor(Math.random() * NAMES.length);
+  let bots = 0;
+  for (let t = 0; t < teams; t++) for (let k = 0; k < size; k++) {
+    const i = t * size + k, [x, y] = nearSpot(spots[t], k, size), c = humans[i];
+    const p = c ? (c.player = makePlayer(c.name, x, y, false, c.skin || OUTFITS[(i * 5) % OUTFITS.length])) : makePlayer(nextBotName(), x, y, true, OUTFITS[(i + 3) % OUTFITS.length]);
+    if (c) p.hitMarkT = -9; else bots++;
+    p.team = t; p.slot = k; players.push(p);
   }
   time = 0; state = 'play'; running = true; overAt = -1; events = []; lootDirty = rosterDirty = true;
   for (const c of clients) welcome(c);
-  console.log(`Match started: ${humans.length} player(s), ${bots} bot(s).`);
+  console.log(`Match started (${gameMode.team}${gameMode.blitz ? ', blitz' : ''}): ${humans.length} player(s), ${bots} bot(s), ${teams} team(s).`);
 }
 
 function welcome(c) {
@@ -61,21 +76,42 @@ function welcome(c) {
     river, bridges, ponds,
   };
   lootDirty = true;
-  send(c, JSON.stringify({ t: 'welcome', id: c.player ? c.player.id : -1, roster: roster(), world }));
+  send(c, JSON.stringify({ t: 'welcome', id: c.player ? c.player.id : -1, roster: roster(), world, mode: gameMode }));
 }
-const roster = () => players.map(p => [p.id, p.name, p.skin, p.bot ? 1 : 0]);
+const roster = () => players.map(p => [p.id, p.name, p.skin, p.bot ? 1 : 0, p.team, p.slot || 0]);
 function send(c, str) { if (c.ws.readyState === 1) c.ws.send(str); }
 
-function join(ws, rawName, rawSkin) {
+function join(ws, rawName, rawSkin, rawMode, blitz) {
   const name = rawName.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16) || 'Player';
   const skin = SKIN_BY_ID[rawSkin] ? rawSkin : null; // unknown skins fall back to one picked for them
-  const c = { ws, name, skin, player: null, lastIn: Date.now() };
+  const mode = TEAM_SIZES[rawMode] ? rawMode : 'solo'; // the mode this player would like; it counts as a vote for the next match
+  const c = { ws, name, skin, mode, blitz: !!blitz, player: null, lastIn: Date.now() };
   clients.add(c);
   if (!running) startMatch();
   else if (overAt < 0 && time < JOIN_WINDOW) { // late joiners drop in while the match is young
+    const size = TEAM_SIZES[gameMode.team];
+    // In team modes a late joiner first takes over a bot's place on a team that already has a human, so friends
+    // who connect a few seconds apart still end up together
+    const host = size > 1 && players.find(h => h.alive && !h.bot && players.some(q => q.alive && q.bot && q.team === h.team));
+    if (host) {
+      const bot = players.find(q => q.alive && q.bot && q.team === host.team);
+      players.splice(players.indexOf(bot), 1);
+      c.player = makePlayer(name, bot.x, bot.y, false, c.skin || OUTFITS[(clients.size * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
+      c.player.team = bot.team; c.player.slot = bot.slot; players.push(c.player);
+      rosterDirty = true; welcome(c);
+      console.log(`${name} joined (${clients.size} online).`);
+      return c;
+    }
+    // otherwise they get a team of their own, topped up with bot teammates in team modes
     const s = freeSpot(players.filter(p => p.alive).map(p => [p.x, p.y]), true);
-    c.player = makePlayer(name, s[0], s[1], false, c.skin || OUTFITS[(clients.size * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
-    players.push(c.player); rosterDirty = true;
+    const team = Math.max(-1, ...players.map(p => p.team)) + 1;
+    for (let k = 0; k < size; k++) {
+      const [x, y] = nearSpot(s, k, size);
+      const p = k === 0 ? (c.player = makePlayer(name, x, y, false, c.skin || OUTFITS[(clients.size * 5) % OUTFITS.length])) : makePlayer(nextBotName(), x, y, true, OUTFITS[(k * 7) % OUTFITS.length]);
+      if (k === 0) p.hitMarkT = -9;
+      p.team = team; p.slot = k; players.push(p);
+    }
+    rosterDirty = true;
     welcome(c);
   } else welcome(c); // spectate until the next match
   console.log(`${name} joined (${clients.size} online).`);
@@ -106,7 +142,7 @@ function tick(dt) {
   for (const c of clients) if (c.player && now - c.lastIn > 1000) { const i = c.player.input; i.mx = i.my = 0; i.fire = false; }
   update(dt);
   particles.length = 0; decals.length = 0;
-  if (overAt < 0 && players.filter(p => p.alive).length <= 1) overAt = time;
+  if (overAt < 0 && new Set(players.filter(p => p.alive).map(p => p.team)).size <= 1) overAt = time; // one team left
   if (overAt >= 0 && time - overAt > RESTART_DELAY) startMatch();
 }
 
@@ -139,6 +175,6 @@ function broadcast() {
   }
 }
 
-const status = () => ({ online: clients.size, running, alive: running ? players.filter(p => p.alive).length : 0, matchTime: Math.round(time) });
+const status = () => ({ online: clients.size, running, mode: running ? gameMode : null, alive: running ? players.filter(p => p.alive).length : 0, matchTime: Math.round(time) });
 
 globalThis.SIM = { join, input, leave, tick, broadcast, status };
