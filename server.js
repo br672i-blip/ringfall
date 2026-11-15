@@ -63,7 +63,7 @@ wss.on('connection', ws => {
   ws.on('message', data => {
     let m; try { m = JSON.parse(data); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
-    if (m.t === 'join' && !client) client = SIM.join(ws, String(m.name || ''));
+    if (m.t === 'join' && !client) client = SIM.join(ws, String(m.name || ''), String(m.skin || ''));
     else if (client) SIM.input(client, m);
   });
   ws.on('close', () => { if (client) SIM.leave(client); });

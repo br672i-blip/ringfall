@@ -84,7 +84,24 @@ a{color:inherit}
 .name-row{display:flex;gap:4px}
 .player-name-input{display:block;flex:1;min-width:0;background:#fff;color:#000;font-weight:700;padding:0;cursor:text;text-align:center;text-shadow:none}
 .player-name-input::placeholder{color:#6b6b6b;font-weight:700}
-.btn-dice{width:20%;flex:none}
+.btn-dice{width:20%;flex:none;padding:0}
+.btn-dice img{width:34px;height:34px;display:block}
+/* skin picker panel (survev's loadout) */
+#skin-modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55)}
+#skin-modal.open{display:flex}
+.skin-panel{width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:rgba(20,20,20,.92);border-radius:5px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.skin-panel header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(0,0,0,.45);font-weight:700;font-size:18px;text-transform:uppercase}
+.skin-close{width:32px;height:32px;border:0;border-radius:5px;background:var(--grey);color:#fff;font-size:20px;line-height:1;cursor:pointer;box-shadow:inset 0 -2px var(--grey-edge)}
+.skin-current{display:flex;align-items:center;gap:14px;padding:14px 16px 4px}
+.skin-current img{width:72px;height:72px;background:rgba(255,255,255,.06);border-radius:6px}
+.skin-current b{font-size:22px;color:var(--gold)}
+.skin-current small{display:block;color:rgba(255,255,255,.7)}
+.skin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:8px;padding:12px 16px 18px}
+.skin-opt{aspect-ratio:1;padding:0;border:2px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.07);cursor:pointer}
+.skin-opt img{width:100%;height:100%;display:block}
+.skin-opt:hover{background:rgba(255,255,255,.15)}
+.skin-opt[aria-checked="true"]{border-color:#00ff00;background:rgba(0,255,0,.12)}
+.skin-opt:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .server-select{display:block;appearance:none;background:rgba(0,0,0,.35);border:2px solid #00ff00;padding:0 30px;text-align-last:center;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:11px}
 .server-select option{color:#000}
@@ -201,8 +218,8 @@ a{color:inherit}
         <div class="name-row">
           <label for="player-name-input" class="sr">Your name</label>
           <input id="player-name-input" class="menu-option player-name-input" type="text" maxlength="16" placeholder="Enter your name here" spellcheck="false">
-          <button type="button" id="btn-dice" class="menu-option btn-blue btn-darken btn-dice" aria-label="Pick a random name" title="Random name">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="#fff"/><circle cx="8" cy="8" r="1.7" fill="#1e90ff"/><circle cx="16" cy="8" r="1.7" fill="#1e90ff"/><circle cx="12" cy="12" r="1.7" fill="#1e90ff"/><circle cx="8" cy="16" r="1.7" fill="#1e90ff"/><circle cx="16" cy="16" r="1.7" fill="#1e90ff"/></svg>
+          <button type="button" id="btn-skin" class="menu-option btn-blue btn-darken btn-dice" aria-haspopup="dialog" aria-controls="skin-modal" aria-label="Choose a skin" title="Choose a skin">
+            <img id="skin-btn-img" alt="">
           </button>
         </div>
         <label for="mode-select" class="sr">Game mode</label>
@@ -249,6 +266,11 @@ a{color:inherit}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>
       </div>
       <div class="news-scroll">
+        <div class="news-item" id="news-skins">
+          <small class="news-date">November 14th, 2026</small>
+          <p class="news-paragraph"><strong>Dress Up</strong></p>
+          <p class="news-paragraph">Pick from <span class="highlight">22 skins</span>, from classic colours to Woodland camo, Tiger, Galaxy, Watermelon and Ninja. Press the blue button next to your name.</p>
+        </div>
         <div class="news-item" id="news-rpg">
           <small class="news-date">November 14th, 2026</small>
           <p class="news-paragraph"><strong>Big Bang</strong></p>
@@ -297,6 +319,14 @@ a{color:inherit}
     </section>
   </div>
 
+  <div id="skin-modal" role="dialog" aria-modal="true" aria-labelledby="skin-h">
+    <div class="skin-panel">
+      <header><span id="skin-h">Choose a skin</span><button type="button" class="skin-close" aria-label="Close">×</button></header>
+      <div class="skin-current"><img id="skin-cur-img" alt=""><div><b id="skin-cur-name"></b><small>You'll wear this in your next match.</small></div></div>
+      <div class="skin-grid" role="radiogroup" aria-label="Skins"></div>
+    </div>
+  </div>
+
   <nav id="start-bottom-middle" aria-label="Links">
     <a class="footer-after" href="#news-block" data-show-news>What's new</a>
     <a class="footer-after" href="/">All games</a>
@@ -317,6 +347,7 @@ a{color:inherit}
   </div>
 </main>
 
+<script src="skins.js"></script>
 <script>
 const ver = document.getElementById('version');
 if (ver.textContent.includes('__')) ver.textContent = 'ver dev';
@@ -331,12 +362,36 @@ document.getElementById('play-form').addEventListener('submit', e => {
   location.href = 'play/?start=solo';
 });
 
-// The blue dice button fills in a random name (the same pool the bots use).
-const NAMES = ['Kestrel', 'Moth', 'Juniper', 'Rook', 'Vesper', 'Tamsin', 'Okoro', 'Brindle', 'Halcyon', 'Pike', 'Wren', 'Osei', 'Marlowe', 'Quill', 'Sable', 'Indigo', 'Fenwick', 'Talon', 'Corvid', 'Nadia', 'Ruckus', 'Lumen', 'Bastion', 'Yarrow', 'Thistle', 'Ember', 'Gale', 'Sorrel'];
-document.getElementById('btn-dice').addEventListener('click', () => {
-  let n; do { n = NAMES[Math.floor(Math.random() * NAMES.length)] + Math.floor(Math.random() * 90 + 10); } while (n === nameInput.value);
-  nameInput.value = n; nameInput.focus();
-});
+// The blue square shows your skin and opens the skin picker. The choice is stored under the same key the
+// game reads, so the next match starts in it.
+(function skinPicker() {
+  const btn = document.getElementById('btn-skin'), modal = document.getElementById('skin-modal');
+  if (typeof SKINS === 'undefined') { btn.hidden = true; return; } // skins.js missing: keep the name box full width
+  let cur = 'tan'; try { const v = localStorage.getItem('ringfall-skin'); if (SKIN_BY_ID[v]) cur = v; } catch (e) {}
+  const big = {}, small = {}; for (const s of SKINS) { small[s.id] = skinPreviewURL(s, 120); }
+  const grid = modal.querySelector('.skin-grid'), opts = [];
+  const show = id => {
+    document.getElementById('skin-btn-img').src = small[id];
+    document.getElementById('skin-cur-img').src = big[id] || (big[id] = skinPreviewURL(SKIN_BY_ID[id], 144));
+    document.getElementById('skin-cur-name').textContent = SKIN_BY_ID[id].name;
+    for (const o of opts) o.setAttribute('aria-checked', String(o.dataset.id === id));
+  };
+  for (const s of SKINS) {
+    const o = document.createElement('button'); o.type = 'button'; o.className = 'skin-opt btn-darken'; o.dataset.id = s.id;
+    o.setAttribute('role', 'radio'); o.setAttribute('aria-label', s.name); o.title = s.name;
+    const img = document.createElement('img'); img.alt = ''; img.src = small[s.id]; o.appendChild(img);
+    o.addEventListener('click', () => { cur = s.id; try { localStorage.setItem('ringfall-skin', cur); } catch (e) {} show(cur); });
+    o.addEventListener('dblclick', () => close());
+    grid.appendChild(o); opts.push(o);
+  }
+  const open = () => { modal.classList.add('open'); (opts.find(o => o.dataset.id === cur) || opts[0]).focus(); };
+  const close = () => { modal.classList.remove('open'); btn.focus(); };
+  btn.addEventListener('click', open);
+  modal.querySelector('.skin-close').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('open')) close(); });
+  show(cur);
+})();
 
 // "How to Play"/"Controls" and "Play Online" open their panel inside the menu, one at a time.
 const drawerBtns = document.querySelectorAll('[data-drawer]');

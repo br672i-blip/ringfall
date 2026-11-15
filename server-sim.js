@@ -40,7 +40,7 @@ function startMatch() {
   const names = NAMES.slice().sort(() => Math.random() - .5);
   humans.forEach((c, i) => {
     const s = spots[i];
-    c.player = makePlayer(c.name, s[0], s[1], false, OUTFITS[(i * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
+    c.player = makePlayer(c.name, s[0], s[1], false, c.skin || OUTFITS[(i * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
     players.push(c.player);
   });
   for (let i = 0; i < bots; i++) {
@@ -63,17 +63,18 @@ function welcome(c) {
   lootDirty = true;
   send(c, JSON.stringify({ t: 'welcome', id: c.player ? c.player.id : -1, roster: roster(), world }));
 }
-const roster = () => players.map(p => [p.id, p.name, p.color, p.bot ? 1 : 0]);
+const roster = () => players.map(p => [p.id, p.name, p.skin, p.bot ? 1 : 0]);
 function send(c, str) { if (c.ws.readyState === 1) c.ws.send(str); }
 
-function join(ws, rawName) {
+function join(ws, rawName, rawSkin) {
   const name = rawName.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16) || 'Player';
-  const c = { ws, name, player: null, lastIn: Date.now() };
+  const skin = SKIN_BY_ID[rawSkin] ? rawSkin : null; // unknown skins fall back to one picked for them
+  const c = { ws, name, skin, player: null, lastIn: Date.now() };
   clients.add(c);
   if (!running) startMatch();
   else if (overAt < 0 && time < JOIN_WINDOW) { // late joiners drop in while the match is young
     const s = freeSpot(players.filter(p => p.alive).map(p => [p.x, p.y]), true);
-    c.player = makePlayer(name, s[0], s[1], false, OUTFITS[(clients.size * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
+    c.player = makePlayer(name, s[0], s[1], false, c.skin || OUTFITS[(clients.size * 5) % OUTFITS.length]); c.player.hitMarkT = -9;
     players.push(c.player); rosterDirty = true;
     welcome(c);
   } else welcome(c); // spectate until the next match

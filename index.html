@@ -100,6 +100,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
 .title span{color:var(--accent)}
 .tag{color:var(--muted);margin:6px 0 20px;font-size:16px}
 #playerName{width:100%;box-sizing:border-box;font:700 18px var(--f-body);text-align:center;padding:11px;border-radius:5px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.95);color:#222;margin-bottom:10px}
+.skin-head{display:flex;justify-content:space-between;align-items:baseline;margin:4px 2px 6px}
+#skinName{font-weight:700;color:var(--accent)}
+#skinGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-bottom:14px}
+.skin{aspect-ratio:1;padding:0;border:2px solid rgba(255,255,255,.14);border-radius:6px;background:rgba(255,255,255,.08);cursor:pointer;display:grid;place-items:center}
+.skin img{width:100%;height:100%;display:block}
+.skin:hover{background:rgba(255,255,255,.16)}
+.skin[aria-checked="true"]{border-color:var(--accent);background:rgba(255,180,0,.18)}
+.skin:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .btn{pointer-events:auto;cursor:pointer;font:700 20px var(--f-body);letter-spacing:.04em;padding:12px 20px;border-radius:5px;border:0;border-bottom:4px solid #b97a00;background:var(--accent);color:#2b1a00;width:100%}
 .btn:active{transform:translateY(2px);border-bottom-width:2px}
 .btn.alt{background:rgba(255,255,255,.14);color:#fff;border-bottom-color:rgba(0,0,0,.3)}
@@ -211,6 +219,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ground);color:va
     <h1 class="title">RINGFALL<span>.IO</span></h1>
     <label for="playerName" class="lbl" style="display:block;margin-bottom:6px">Your name</label>
     <input id="playerName" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Player">
+    <div class="skin-head"><span class="lbl">Skin</span><span id="skinName"></span></div>
+    <div id="skinGrid" role="radiogroup" aria-label="Skin"></div>
     <div class="btns" style="flex-direction:column"><button type="button" class="btn" id="onlineBtn" hidden>Play Online</button><button type="button" class="btn" id="playBtn">Play Solo</button></div>
     <p id="netStatus" class="tag" style="margin:12px 0 0" hidden></p>
     <dl class="keys">
@@ -398,13 +408,77 @@ const PHASES = [
   { wait: 15, shrink: 12, r: 0,    dps: 18 },
 ];
 const NAMES = ['Kestrel','Moth','Juniper','Rook','Vesper','Tamsin','Okoro','Brindle','Halcyon','Pike','Wren','Osei','Marlowe','Quill','Sable','Indigo','Fenwick','Talon','Corvid','Nadia','Ruckus','Lumen','Bastion','Yarrow','Thistle','Ember','Gale','Sorrel'];
-const OUTFIT_SET = [
-  ['#f8c574', '#f8c574', '#816537'], ['#c76a67', '#b5504d', '#9e3734'], ['#eab963', '#d8a44b', '#bf8b2f'], ['#acd563', '#96c24a', '#83b034'],
-  ['#7fa8d6', '#6390c4', '#4e78ab'], ['#a88ad0', '#9070bd', '#775aa3'], ['#bdbdbd', '#a3a3a3', '#858585'], ['#6fc2b0', '#55aa98', '#3f8f7e'],
-  ['#e3a07a', '#cf8660', '#b06a45'], ['#d9d27a', '#c4bc5e', '#a59e45'],
+// SKINS-BEGIN: skins you can pick. This block is self-contained: the website's deploy copies it to
+// skins.js so the landing page's skin picker draws exactly what the game draws.
+const SKINS = [
+  // classic colours (the bots wear these too)
+  { id: 'tan',      name: 'Tan',      base: '#f8c574', hand: '#f8c574', bag: '#816537' },
+  { id: 'crimson',  name: 'Crimson',  base: '#c76a67', hand: '#b5504d', bag: '#9e3734' },
+  { id: 'sandy',    name: 'Sandy',    base: '#eab963', hand: '#d8a44b', bag: '#bf8b2f' },
+  { id: 'lime',     name: 'Lime',     base: '#acd563', hand: '#96c24a', bag: '#83b034' },
+  { id: 'sky',      name: 'Sky',      base: '#7fa8d6', hand: '#6390c4', bag: '#4e78ab' },
+  { id: 'violet',   name: 'Violet',   base: '#a88ad0', hand: '#9070bd', bag: '#775aa3' },
+  { id: 'steel',    name: 'Steel',    base: '#bdbdbd', hand: '#a3a3a3', bag: '#858585' },
+  { id: 'teal',     name: 'Teal',     base: '#6fc2b0', hand: '#55aa98', bag: '#3f8f7e' },
+  { id: 'copper',   name: 'Copper',   base: '#e3a07a', hand: '#cf8660', bag: '#b06a45' },
+  { id: 'mustard',  name: 'Mustard',  base: '#d9d27a', hand: '#c4bc5e', bag: '#a59e45' },
+  // patterned
+  { id: 'woodland', name: 'Woodland', base: '#6b7a3a', hand: '#556230', bag: '#3f4a24', pattern: 'camo',    cols: ['#3e4a22', '#9aa55a', '#2b2f1a'] },
+  { id: 'desert',   name: 'Desert',   base: '#d8c08a', hand: '#c4a96e', bag: '#8a7244', pattern: 'camo',    cols: ['#b39560', '#efe0b5', '#8e7448'] },
+  { id: 'arctic',   name: 'Arctic',   base: '#e8eef2', hand: '#cfd9e0', bag: '#8796a3', pattern: 'camo',    cols: ['#b9c6d0', '#ffffff', '#93a3b0'] },
+  { id: 'tiger',    name: 'Tiger',    base: '#f08a24', hand: '#e07a14', bag: '#7a3d0a', pattern: 'stripes', cols: ['#1e1e1e'] },
+  { id: 'zebra',    name: 'Zebra',    base: '#f4f4f4', hand: '#dcdcdc', bag: '#333333', pattern: 'stripes', cols: ['#151515'] },
+  { id: 'bullseye', name: 'Bullseye', base: '#f4f4f4', hand: '#d23a2a', bag: '#8f1d14', pattern: 'ring',    cols: ['#d23a2a'] },
+  { id: 'melon',    name: 'Watermelon', base: '#ff5c6c', hand: '#3d9a3d', bag: '#2f6b2f', pattern: 'melon', cols: ['#3d9a3d', '#b8ef9e', '#222222'] },
+  { id: 'galaxy',   name: 'Galaxy',   base: '#1d1838', hand: '#2c2458', bag: '#141029', pattern: 'galaxy',  cols: ['#7c4dff', '#ff6ad5', '#ffffff'] },
+  { id: 'royal',    name: 'Royal',    base: '#6a3fb0', hand: '#5a3296', bag: '#3a1f66', pattern: 'star',    cols: ['#ffd24a'] },
+  { id: 'ninja',    name: 'Ninja',    base: '#262626', hand: '#1a1a1a', bag: '#111111', pattern: 'band',    cols: ['#d23a2a'] },
+  { id: 'versus',   name: 'Versus',   base: '#3f7fe0', hand: '#3f7fe0', bag: '#2a4f8f', pattern: 'split',   cols: ['#e0453f'] },
+  { id: 'bubblegum', name: 'Bubblegum', base: '#ff9ccf', hand: '#f07fb8', bag: '#b85a8a', pattern: 'dots',  cols: ['#ffffff'] },
 ];
-const OUTFITS = OUTFIT_SET.map(o => o[0]);
-const outfitOf = col => OUTFIT_SET.find(o => o[0] === col) || [col, col, '#816537'];
+const SKIN_BY_ID = Object.fromEntries(SKINS.map(s => [s.id, s]));
+// The body: a circle of radius r at the origin, facing +x, with the skin's pattern clipped inside it
+function drawSkinBody(c, s, r) {
+  const T = Math.PI * 2, dot = (x, y, rad, col) => { c.fillStyle = col; c.beginPath(); c.arc(x * r, y * r, rad * r, 0, T); c.fill(); };
+  c.save(); c.beginPath(); c.arc(0, 0, r, 0, T); c.fillStyle = s.base; c.fill(); c.clip();
+  const k = s.cols || [];
+  switch (s.pattern) {
+    case 'camo': for (const [x, y, rad, i] of [[-.45, -.35, .4, 0], [.35, -.55, .32, 1], [.45, .3, .38, 2], [-.3, .5, .34, 1], [.05, .02, .24, 0], [-.78, .12, .26, 2], [.8, -.1, .24, 0], [.1, .8, .22, 2]]) dot(x, y, rad, k[i]); break;
+    case 'stripes': c.strokeStyle = k[0]; c.lineWidth = r * .2; c.lineCap = 'round';
+      for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(i * r * .55 - r * .25, -r * 1.1); c.quadraticCurveTo(i * r * .55 + r * .3, 0, i * r * .55 - r * .25, r * 1.1); c.stroke(); } break;
+    case 'ring': dot(0, 0, .74, k[0]); dot(0, 0, .5, s.base); dot(0, 0, .26, k[0]); break;
+    case 'melon': c.strokeStyle = k[0]; c.lineWidth = r * .34; c.beginPath(); c.arc(0, 0, r, 0, T); c.stroke();
+      c.strokeStyle = k[1]; c.lineWidth = r * .1; c.beginPath(); c.arc(0, 0, r * .78, 0, T); c.stroke();
+      for (const [x, y] of [[-.3, -.25], [.2, -.35], [.35, .15], [-.1, .3], [-.38, .12], [.05, -.02]]) { c.fillStyle = k[2]; c.beginPath(); c.ellipse(x * r, y * r, r * .06, r * .1, x + y, 0, T); c.fill(); } break;
+    case 'galaxy': c.globalAlpha = .55; dot(-.25, -.2, .6, k[0]); c.globalAlpha = .45; dot(.35, .3, .42, k[1]); c.globalAlpha = 1;
+      for (const [x, y, rad] of [[-.5, .4, .06], [.4, -.45, .05], [.1, .1, .07], [-.15, -.6, .04], [.65, .15, .04], [-.65, -.15, .05], [.2, .6, .04]]) dot(x, y, rad, k[2]); break;
+    case 'star': { c.fillStyle = k[0]; c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = (i % 2 ? .24 : .58) * r; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); c.fill(); break; }
+    case 'band': c.fillStyle = k[0]; c.fillRect(r * .05, -r, r * .32, r * 2); break; // headband across the forehead
+    case 'split': c.fillStyle = k[0]; c.fillRect(-r, 0, r * 2, r); break;
+    case 'dots': for (const [x, y] of [[-.4, -.4], [.35, -.45], [0, 0], [-.5, .25], [.5, .3], [-.05, .6], [.1, -.75], [.75, -.1], [-.8, -.05]]) dot(x, y, .14, k[0]); break;
+  }
+  c.restore();
+}
+// A preview of a skin as the player looks in game: body, outline and both fists, facing up
+function drawSkinPreview(c, s, size) {
+  const T = Math.PI * 2, r = size * .3, cx = size / 2, cy = size * .56, ink = '#2b2014';
+  c.save(); c.translate(cx, cy); c.rotate(-Math.PI / 2);
+  for (const y of [-1, 1]) { c.fillStyle = s.hand; c.beginPath(); c.arc(r * .72, y * r * .72, r * .34, 0, T); c.fill(); c.strokeStyle = ink; c.lineWidth = Math.max(1.5, r * .11); c.stroke(); }
+  drawSkinBody(c, s, r);
+  c.strokeStyle = ink; c.lineWidth = Math.max(1.5, r * .11); c.beginPath(); c.arc(0, 0, r, 0, T); c.stroke();
+  c.restore();
+}
+function skinPreviewURL(s, size) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size; const c = cv.getContext && cv.getContext('2d');
+  if (!c || !cv.toDataURL) return '';
+  drawSkinPreview(c, s, size); return cv.toDataURL();
+}
+// SKINS-END
+const OUTFITS = SKINS.map(s => s.id); // bots cycle through every skin
+const skinOf = p => SKIN_BY_ID[p.skin] || SKINS[0];
+// The skin chosen in the menu (or on the website), remembered in this browser
+let mySkin = 'tan';
+try { const v = localStorage.getItem('ringfall-skin'); if (SKIN_BY_ID[v]) mySkin = v; } catch (e) {}
 // Colours follow survev's main map biome and sprite palette
 const C = {
   water: '#3282ab', waterHi: '#b3f0ff', sand: '#cdb35b', bank: '#905e24', grass: '#80af49', grid: 'rgba(0,0,0,.15)', tuft: '#74a33f',
@@ -1149,9 +1223,10 @@ function forcePickup(p, it) {
 }
 
 // ---------- players ----------
-function makePlayer(name, x, y, isBot, color) {
+function makePlayer(name, x, y, isBot, skinId) {
+  const skin = SKIN_BY_ID[skinId] || SKINS[0];
   return {
-    id: uid++, name, x, y, r: 22, angle: rand(0, TAU), hp: 100, boost: 0, alive: true, bot: isBot, color,
+    id: uid++, name, x, y, r: 22, angle: rand(0, TAU), hp: 100, boost: 0, alive: true, bot: isBot, skin: skin.id, color: skin.base,
     helmet: 0, vest: 0, bag: 0, scopes: { 1: true }, scope: 1, thr: { frag: 0, smoke: 0, mirv: 0, strobe: 0 }, thrSel: 'frag',
     slots: [null, null], cur: 2, lastSlot: 2, ammo: { a9: 0, a12: 0, a762: 0, a556: 0, a50: 0, a308: 0, rkt: 0 }, inv: { bandage: 0, medkit: 0, soda: 0, pills: 0 },
     fireCd: 0, reloadT: 0, reloadMax: 1, healT: 0, healMax: 1, healType: null, kick: 0, punchT: 0, punchHand: 0, hurt: 0,
@@ -1845,8 +1920,9 @@ function newGame() {
   zone = { cx: MAP / 2, cy: MAP / 2, r: MAP * .72, phase: 0, state: 'wait', timer: 0, tx: 0, ty: 0, tr: 0 };
   beginWait();
   const names = NAMES.slice().sort(() => Math.random() - .5), spots = spawnSpots(BOTS + 1);
-  for (let i = 0; i < BOTS; i++) players.push(makePlayer(names[i], spots[i][0], spots[i][1], true, OUTFITS[(i + 1) % OUTFITS.length]));
-  me = makePlayer(myName, spots[BOTS][0], spots[BOTS][1], false, OUTFITS[0]); me.hitMarkT = -9;
+  const botSkins = OUTFITS.filter(id => id !== mySkin).sort(() => Math.random() - .5);
+  for (let i = 0; i < BOTS; i++) players.push(makePlayer(names[i], spots[i][0], spots[i][1], true, botSkins[i % botSkins.length]));
+  me = makePlayer(myName, spots[BOTS][0], spots[BOTS][1], false, mySkin); me.hitMarkT = -9;
   players.push(me);
   cam.x = me.x; cam.y = me.y; startTime = 0;
   document.getElementById('feed').innerHTML = '';
@@ -1937,6 +2013,25 @@ const keys = {}; let mouseX = 0, mouseY = 0, mouseDown = false, touchMode = fals
 const touch = { move: null, aim: null };
 const nameInput = document.getElementById('playerName');
 try { nameInput.value = localStorage.getItem('ringfall-name') || ''; } catch (e) {}
+// Skin picker on the start menu
+(function buildSkinPicker() {
+  const grid = document.getElementById('skinGrid'), label = document.getElementById('skinName');
+  if (!grid || !grid.appendChild) return; // no page (the multiplayer server runs this script too)
+  const btns = [];
+  const pick = id => {
+    mySkin = id; try { localStorage.setItem('ringfall-skin', id); } catch (e) {}
+    for (const b of btns) b.setAttribute('aria-checked', String(b.dataset.id === id));
+    label.textContent = SKIN_BY_ID[id].name;
+  };
+  for (const sk of SKINS) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'skin'; b.dataset.id = sk.id;
+    b.setAttribute('role', 'radio'); b.setAttribute('aria-label', sk.name); b.title = sk.name;
+    const img = document.createElement('img'); img.alt = ''; img.src = skinPreviewURL(sk, 88); b.appendChild(img);
+    b.addEventListener('click', () => pick(sk.id));
+    grid.appendChild(b); btns.push(b);
+  }
+  pick(mySkin);
+})();
 function cycleScope(dir) { const have = [1, 2, 4, 8].filter(z => me.scopes[z]); doAct('scope', have[(have.indexOf(me.scope) + dir + have.length) % have.length]); }
 function healKey() { // touch: best heal for the moment
   if (me.hp < 75 && me.inv.bandage && me.hp >= 50) return 'bandage';
@@ -2708,13 +2803,13 @@ function drawPlayer(p) {
   ctx.save(); ctx.translate(p.x, p.y);
   ctx.rotate(p.angle);
   const g = curGun(p), def = g && GUNS[g.id], kick = p.kick * 5, out = C.skinOutline;
-  const tint = outfitOf(p.color), hand = (x, y) => { ctx.fillStyle = tint[1]; circ(x, y, 7.5); ctx.fill(); ctx.strokeStyle = out; ctx.lineWidth = 2.5; ctx.stroke(); };
-  if (p.bag) { ctx.fillStyle = tint[2]; ctx.strokeStyle = out; ctx.lineWidth = 2.5; circ(-p.r * .72, 0, p.r * (.5 + p.bag * .1)); ctx.fill(); ctx.stroke(); }
+  const skin = skinOf(p), hand = (x, y) => { ctx.fillStyle = skin.hand; circ(x, y, 7.5); ctx.fill(); ctx.strokeStyle = out; ctx.lineWidth = 2.5; ctx.stroke(); };
+  if (p.bag) { ctx.fillStyle = skin.bag; ctx.strokeStyle = out; ctx.lineWidth = 2.5; circ(-p.r * .72, 0, p.r * (.5 + p.bag * .1)); ctx.fill(); ctx.stroke(); }
   const dual = def && def.dual, art = def && GUN_ART[dual ? def.base : g.id], gx = art ? gunBase(p, art) - kick : 0;
   const dualSides = dual ? [-1, 1].map(sd => ({ y: sd * p.r * .55, x: gunBase(p, art) - ((p.dualSide ? 1 : -1) === sd ? kick : 0) })) : null;
   if (dual) for (const d of dualSides) { ctx.save(); ctx.translate(d.x, d.y); ctx.scale(GUN_SCALE, GUN_SCALE); drawGunArt(ctx, def.base); ctx.restore(); }
   else if (art) { ctx.save(); ctx.translate(gx, 0); ctx.scale(GUN_SCALE, GUN_SCALE); drawGunArt(ctx, g.id); ctx.restore(); }
-  ctx.fillStyle = p.color; circ(0, 0, p.r); ctx.fill();
+  drawSkinBody(ctx, skin, p.r);
   if (p.vest) { ctx.strokeStyle = GEAR.vest.color[p.vest]; ctx.lineWidth = 6; circ(0, 0, p.r - 3); ctx.stroke(); }
   ctx.strokeStyle = out; ctx.lineWidth = 2.5; circ(0, 0, p.r); ctx.stroke();
   if (dual) for (const d of dualSides) hand(d.x + art.grip * GUN_SCALE, d.y);
@@ -2978,7 +3073,7 @@ function netConnect() {
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
   net = { ws, ready: false, myId: -1, spectator: false, byId: new Map(), obs: new Map(), roster: new Map(), tanks: new Map(), lastIn: 0, sx: 0, sy: 0 };
   setNetStatus('Connecting…'); $('onlineBtn').disabled = true;
-  ws.onopen = () => netSend({ t: 'join', name: myName });
+  ws.onopen = () => netSend({ t: 'join', name: myName, skin: mySkin });
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === 'welcome') netWelcome(m); else if (m.t === 's' && net && net.ready) netSnap(m); };
   ws.onclose = () => { const wasReady = net && net.ready; net = null; $('onlineBtn').disabled = false; if (state !== 'menu') toMenu(); setNetStatus(wasReady ? 'Disconnected from the server.' : 'Could not reach the game server.'); };
 }
@@ -2993,7 +3088,7 @@ function netWelcome(m) {
   buildMinimap();
   net.byId.clear(); net.roster = new Map(m.roster.map(r => [r[0], r]));
   net.myId = m.id; net.spectator = m.id < 0; net.ready = true;
-  me = makePlayer(myName, MAP / 2, MAP / 2, false, OUTFITS[0]); me.id = m.id; me.alive = false; me.hitMarkT = -9; me.fresh = true;
+  me = makePlayer(myName, MAP / 2, MAP / 2, false, (net.roster.get(m.id) || [])[2] || mySkin); me.id = m.id; me.alive = false; me.hitMarkT = -9; me.fresh = true;
   if (!net.spectator) net.byId.set(me.id, me);
   time = 0; startTime = 0; state = 'play';
   document.getElementById('feed').innerHTML = '';

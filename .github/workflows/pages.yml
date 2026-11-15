@@ -33,6 +33,9 @@ jobs:
             cat index.html
             printf '%s\n' '</html>'
           } > _site/play/index.html
+          # the landing page's skin picker uses the game's own skin list and drawing code
+          awk '/SKINS-BEGIN/{f=1} f{print} /SKINS-END/{f=0}' index.html > _site/skins.js
+          test -s _site/skins.js
           # version shown on the landing page: 1.0.<number of commits>, e.g. "ver 1.0.6"
           sed -i "s/__VERSION__/1.0.$(git rev-list --count HEAD)/" _site/index.html
       - uses: actions/configure-pages@v5
