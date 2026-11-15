@@ -1509,6 +1509,7 @@ function updatePlayer(p, dt) {
   if (p.healT > 0) sp *= .5;
   if (inWater(p.x, p.y)) sp *= .55;
   p.x += mx * sp * dt; p.y += my * sp * dt; p.moving = m > .1;
+  if (p.kbx || p.kby) { p.x += p.kbx * dt; p.y += p.kby * dt; const f = Math.exp(-5 * dt); p.kbx *= f; p.kby *= f; if (Math.abs(p.kbx) + Math.abs(p.kby) < 8) p.kbx = p.kby = 0; }
   p.angle = inp.angle;
   p.throwT = Math.max(0, (p.throwT || 0) - dt);
   if (p.cur === 3) updateCook(p, inp, dt);
@@ -1701,7 +1702,8 @@ function landFx(x, y) {
 // climb in. WASD drives the hull, the turret follows the aim, and a click fires a shell that bursts where
 // you aim (or on whatever it hits first). The hull shields the driver; when it is destroyed it explodes
 // and throws them out.
-const TANK = { r: 44, hp: 500, speed: 230, turn: 2.2, turretTurn: 3.4, reload: 2.4, shellSpeed: 1300, range: 950, blastR: 140, blastDmg: 80, barrel: 62 };
+const TANK = { r: 44, hp: 500, speed: 230, turn: 2.2, turretTurn: 3.4, reload: 2.4, shellSpeed: 1300, range: 950, blastR: 140, blastDmg: 80, barrel: 62,
+  ramSpeed: 100, ramMin: 20, ramMax: 55, crush: 60, ramCd: .8 }; // ramming: impact speed threshold, damage range, pinned-against-a-wall damage
 let tankId = 1;
 function makeTank(x, y, a) { return { id: tankId++, x, y, a, ta: a, v: 0, hp: TANK.hp, cd: 0, driver: null, hit: 0 }; }
 function placeTanks() {
@@ -1747,6 +1749,7 @@ function driveTank(t, p, dt) {
     target = TANK.speed * dir * Math.max(0, Math.cos(diff)) * Math.min(1, m);
   }
   if (inWater(t.x, t.y)) target *= .6;
+  t.thrust = target; // what the driver is asking for, even when something is in the way
   t.v += (target - t.v) * Math.min(1, dt * 2.5);
   t.x += Math.cos(t.a) * t.v * dt; t.y += Math.sin(t.a) * t.v * dt;
   if (pushOut(t, TANK.r)) t.v *= .6;
@@ -1762,6 +1765,11 @@ function fireTank(t, p) {
   bullets.push({ x: tipX, y: tipY, dx: ca, dy: sa, speed: TANK.shellSpeed, dmg: 0, owner: p, wid: 'tank', range, trav: 0, falloff: false, w: 6, shell: true });
   t.v -= 40; // recoil
   tankFireFx(t); emit('tfire', t.id);
+}
+function ramFx(x, y) {
+  for (let i = 0; i < 8; i++) particles.push({ type: 'dot', x, y, vx: rand(-180, 180), vy: rand(-180, 180), life: .3, max: .3, size: rand(2, 4), color: '#cfcfcf' });
+  sfx('crate', x, y); sfx('punch', x, y);
+  emit('ram', Math.round(x), Math.round(y));
 }
 function tankFireFx(t) {
   const ca = Math.cos(t.ta), sa = Math.sin(t.ta), x = t.x + ca * TANK.barrel, y = t.y + sa * TANK.barrel;
@@ -1783,16 +1791,33 @@ function destroyTank(t, src) {
   decals.push({ x: t.x, y: t.y, r: TANK.r * 1.1, t: time, scorch: true });
   explode(t.x, t.y, src, 'tank', 190, 80); // the crew is no longer shielded once the hull goes
 }
-// Tanks shove people aside, and hurt them when moving fast; they also bump into each other
+// Ramming. A slow tank just nudges people aside. A fast one hits them: damage scales with speed, the
+// victim is knocked clear and the tank loses speed. Someone pinned against something solid is crushed,
+// and the tank stops rather than pushing them through it.
 function tankCollisions() {
   for (const t of tanks) {
-    const fast = Math.abs(t.v) > 90;
     for (const p of players) {
       if (!p.alive || p.tank) continue;
       const dx = p.x - t.x, dy = p.y - t.y, rr = TANK.r + p.r, dd = dx * dx + dy * dy;
-      if (dd >= rr * rr || dd < 1e-4) continue;
-      const d = Math.sqrt(dd); p.x = t.x + dx / d * rr; p.y = t.y + dy / d * rr; pushOut(p, p.r);
-      if (fast && t.driver && time - (p.rammedT || -9) > .6) { p.rammedT = time; damage(p, 18 + Math.abs(t.v) * .1, t.driver, 'tank'); }
+      if (dd >= rr * rr) continue;
+      const d = Math.sqrt(dd), nx = d > 1e-3 ? dx / d : 1, ny = d > 1e-3 ? dy / d : 0;
+      // closing speed: how fast the tank is moving into this person
+      const facing = Math.cos(t.a) * nx + Math.sin(t.a) * ny, closing = t.v * facing;
+      const ready = time - (p.rammedT || -9) > TANK.ramCd;
+      p.x = t.x + nx * rr; p.y = t.y + ny * rr; pushOut(p, p.r);
+      const pinned = Math.hypot(p.x - t.x, p.y - t.y) < rr - 2; // something solid stopped them moving out of the way
+      if (pinned) {
+        t.x = p.x - nx * rr; t.y = p.y - ny * rr; t.v = 0; pushOut(t, TANK.r);
+        if (t.driver && (t.thrust || 0) * facing > TANK.ramSpeed * .5 && ready) { p.rammedT = time; ramFx(p.x, p.y); damage(p, TANK.crush, t.driver, 'tank'); }
+      } else if (t.driver && closing > TANK.ramSpeed && ready) {
+        p.rammedT = time;
+        const k = clamp((closing - TANK.ramSpeed) / (TANK.speed - TANK.ramSpeed), 0, 1);
+        // thrown forward and off to the side the tank caught them on, so it doesn't just bulldoze them
+        const sx = -Math.sin(t.a), sy = Math.cos(t.a), side = (nx * sx + ny * sy) >= 0 ? 1 : -1, kb = 320 + closing;
+        p.kbx = (nx * .6 + sx * side * .8) * kb; p.kby = (ny * .6 + sy * side * .8) * kb;
+        t.v *= .55;
+        ramFx(p.x, p.y); damage(p, TANK.ramMin + (TANK.ramMax - TANK.ramMin) * k, t.driver, 'tank');
+      } else if (closing > 0) t.v *= .9; // shouldering someone aside slows the tank a little
     }
   }
   for (let i = 0; i < tanks.length; i++) for (let j = i + 1; j < tanks.length; j++) {
@@ -3023,6 +3048,7 @@ function netEvent(ev) {
     }
     case 'boom': explodeFx(ev[1], ev[2], ev[3]); break;
     case 'tfire': { const t = net.tanks.get(ev[1]); if (t) tankFireFx(t); break; }
+    case 'ram': for (let i = 0; i < 8; i++) particles.push({ type: 'dot', x: ev[1], y: ev[2], vx: rand(-180, 180), vy: rand(-180, 180), life: .3, max: .3, size: rand(2, 4), color: '#cfcfcf' }); sfx('crate', ev[1], ev[2]); break;
     case 'air': airdropNote(ev[1], ev[2]); break;
     case 'land': {
       const o = makeObstacle('crate', ev[2], ev[3], { ctype: 'airdrop', size: DROP_SIZE }); o.id = ev[1]; net.obs.set(o.id, o);
